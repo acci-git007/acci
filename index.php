@@ -1,204 +1,339 @@
 <?php
-$conn = mysqli_connect("localhost", "root", "", "sekolah");
 
-if (!$conn) {
-    die("Koneksi gagal: " . mysqli_connect_error());
+/* ==========================
+   KONFIGURASI DATABASE RDS
+   ========================== */
+
+$host = "dblatihan.crq462eykeyv.ap-southeast-2.rds.amazonaws.com";
+$user = "admin";
+$password = "admin2026";
+$database = "db_siswa";
+
+$conn = new mysqli($host, $user, $password, $database);
+
+if ($conn->connect_error) {
+    die("Koneksi gagal: " . $conn->connect_error);
 }
 
-/*
-SQL DATABASE
+/* ==========================
+   CREATE
+   ========================== */
 
-CREATE DATABASE sekolah;
+if (isset($_POST['simpan'])) {
 
-USE sekolah;
+    $nis = trim($_POST['nis']);
+    $nama = trim($_POST['nama']);
+    $jk = trim($_POST['jenis_kelamin']);
+    $alamat = trim($_POST['alamat']);
 
-CREATE TABLE siswa (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    nama VARCHAR(100),
-    kelas VARCHAR(20),
-    alamat TEXT
-);
-
-*/
-
-# TAMBAH DATA
-if (isset($_POST['tambah'])) {
-
-    $nama   = $_POST['nama'];
-    $kelas  = $_POST['kelas'];
-    $alamat = $_POST['alamat'];
-
-    mysqli_query($conn, "INSERT INTO siswa VALUES('', '$nama', '$kelas', '$alamat')");
-
-    header("Location: index.php");
-}
-
-# HAPUS DATA
-if (isset($_GET['hapus'])) {
-
-    $id = $_GET['hapus'];
-
-    mysqli_query($conn, "DELETE FROM siswa WHERE id='$id'");
-
-    header("Location: index.php");
-}
-
-# EDIT DATA
-if (isset($_POST['update'])) {
-
-    $id      = $_POST['id'];
-    $nama    = $_POST['nama'];
-    $kelas   = $_POST['kelas'];
-    $alamat  = $_POST['alamat'];
-
-    mysqli_query($conn, "UPDATE siswa SET
-        nama='$nama',
-        kelas='$kelas',
-        alamat='$alamat'
-        WHERE id='$id'
+    $stmt = $conn->prepare("
+        INSERT INTO siswa
+        (nis,nama,jenis_kelamin,alamat)
+        VALUES (?,?,?,?)
     ");
 
+    $stmt->bind_param(
+        "ssss",
+        $nis,
+        $nama,
+        $jk,
+        $alamat
+    );
+
+    $stmt->execute();
+
     header("Location: index.php");
+    exit;
 }
 
-# AMBIL DATA EDIT
-$edit = null;
+/* ==========================
+   UPDATE
+   ========================== */
+
+if (isset($_POST['update'])) {
+
+    $id = intval($_POST['id']);
+    $nis = trim($_POST['nis']);
+    $nama = trim($_POST['nama']);
+    $jk = trim($_POST['jenis_kelamin']);
+    $alamat = trim($_POST['alamat']);
+
+    $stmt = $conn->prepare("
+        UPDATE siswa
+        SET
+        nis=?,
+        nama=?,
+        jenis_kelamin=?,
+        alamat=?
+        WHERE id=?
+    ");
+
+    $stmt->bind_param(
+        "ssssi",
+        $nis,
+        $nama,
+        $jk,
+        $alamat,
+        $id
+    );
+
+    $stmt->execute();
+
+    header("Location: index.php");
+    exit;
+}
+
+/* ==========================
+   DELETE
+   ========================== */
+
+if (isset($_GET['hapus'])) {
+
+    $id = intval($_GET['hapus']);
+
+    $stmt = $conn->prepare(
+        "DELETE FROM siswa WHERE id=?"
+    );
+
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+
+    header("Location: index.php");
+    exit;
+}
+
+/* ==========================
+   EDIT MODE
+   ========================== */
+
+$edit = false;
+$dataEdit = [];
 
 if (isset($_GET['edit'])) {
 
-    $id = $_GET['edit'];
+    $edit = true;
 
-    $query = mysqli_query($conn, "SELECT * FROM siswa WHERE id='$id'");
+    $id = intval($_GET['edit']);
 
-    $edit = mysqli_fetch_assoc($query);
+    $stmt = $conn->prepare(
+        "SELECT * FROM siswa WHERE id=?"
+    );
+
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+
+    $result = $stmt->get_result();
+
+    $dataEdit = $result->fetch_assoc();
 }
+
+/* ==========================
+   READ
+   ========================== */
+
+$data = $conn->query(
+    "SELECT * FROM siswa ORDER BY id DESC"
+);
+
 ?>
 
 <!DOCTYPE html>
 <html>
 <head>
-    <title>CRUD Data Siswa</title>
 
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<meta charset="utf-8">
+
+<title>CRUD Data Siswa</title>
+
+<style>
+
+body{
+    font-family:Arial,sans-serif;
+    margin:40px;
+}
+
+table{
+    border-collapse:collapse;
+    width:100%;
+}
+
+table,th,td{
+    border:1px solid #ccc;
+}
+
+th,td{
+    padding:10px;
+}
+
+input,textarea,select{
+    width:100%;
+    padding:8px;
+    margin-top:5px;
+}
+
+button{
+    padding:10px 15px;
+    cursor:pointer;
+}
+
+.form-box{
+    background:#f7f7f7;
+    padding:20px;
+    margin-bottom:20px;
+    border-radius:5px;
+}
+
+.btn-edit{
+    color:blue;
+}
+
+.btn-delete{
+    color:red;
+}
+
+</style>
 
 </head>
+
 <body>
 
-<div class="container mt-5">
+<h2>CRUD DATA SISWA</h2>
 
-    <h2 class="mb-4">CRUD Data Siswa</h2>
+<div class="form-box">
 
-    <div class="card p-4 mb-4">
+<h3>
+<?= $edit ? "Edit Siswa" : "Tambah Siswa" ?>
+</h3>
 
-        <form method="POST">
+<form method="POST">
 
-            <input type="hidden" name="id"
-            value="<?= $edit['id'] ?? '' ?>">
+<?php if($edit): ?>
+<input
+type="hidden"
+name="id"
+value="<?= $dataEdit['id']; ?>">
+<?php endif; ?>
 
-            <div class="mb-3">
-                <label>Nama</label>
+<label>NIS</label>
 
-                <input type="text"
-                name="nama"
-                class="form-control"
-                required
-                value="<?= $edit['nama'] ?? '' ?>">
-            </div>
+<input
+type="text"
+name="nis"
+required
+value="<?= $edit ? htmlspecialchars($dataEdit['nis']) : '' ?>">
 
-            <div class="mb-3">
-                <label>Kelas</label>
+<br><br>
 
-                <input type="text"
-                name="kelas"
-                class="form-control"
-                required
-                value="<?= $edit['kelas'] ?? '' ?>">
-            </div>
+<label>Nama</label>
 
-            <div class="mb-3">
-                <label>Alamat</label>
+<input
+type="text"
+name="nama"
+required
+value="<?= $edit ? htmlspecialchars($dataEdit['nama']) : '' ?>">
 
-                <textarea
-                name="alamat"
-                class="form-control"><?= $edit['alamat'] ?? '' ?></textarea>
-            </div>
+<br><br>
 
-            <?php if ($edit) { ?>
+<label>Jenis Kelamin</label>
 
-                <button type="submit"
-                name="update"
-                class="btn btn-warning">
-                Update
-                </button>
+<select name="jenis_kelamin">
 
-                <a href="index.php"
-                class="btn btn-secondary">
-                Batal
-                </a>
+<option value="L"
+<?= ($edit && $dataEdit['jenis_kelamin']=='L') ? 'selected' : '' ?>>
+Laki-laki
+</option>
 
-            <?php } else { ?>
+<option value="P"
+<?= ($edit && $dataEdit['jenis_kelamin']=='P') ? 'selected' : '' ?>>
+Perempuan
+</option>
 
-                <button type="submit"
-                name="tambah"
-                class="btn btn-primary">
-                Simpan
-                </button>
+</select>
 
-            <?php } ?>
+<br><br>
 
-        </form>
+<label>Alamat</label>
 
-    </div>
+<textarea name="alamat"><?= $edit ? htmlspecialchars($dataEdit['alamat']) : '' ?></textarea>
 
-    <table class="table table-bordered table-striped">
+<br><br>
 
-        <tr>
-            <th>No</th>
-            <th>Nama</th>
-            <th>Kelas</th>
-            <th>Alamat</th>
-            <th>Aksi</th>
-        </tr>
+<?php if($edit): ?>
 
-        <?php
+<button type="submit" name="update">
+Update Data
+</button>
 
-        $data = mysqli_query($conn, "SELECT * FROM siswa");
+<a href="index.php">
+Batal
+</a>
 
-        $no = 1;
+<?php else: ?>
 
-        while ($row = mysqli_fetch_assoc($data)) {
+<button type="submit" name="simpan">
+Simpan Data
+</button>
 
-        ?>
+<?php endif; ?>
 
-        <tr>
-
-            <td><?= $no++ ?></td>
-            <td><?= $row['nama'] ?></td>
-            <td><?= $row['kelas'] ?></td>
-            <td><?= $row['alamat'] ?></td>
-
-            <td>
-
-                <a href="?edit=<?= $row['id'] ?>"
-                class="btn btn-sm btn-warning">
-                Edit
-                </a>
-
-                <a href="?hapus=<?= $row['id'] ?>"
-                class="btn btn-sm btn-danger"
-                onclick="return confirm('Yakin hapus data?')">
-                Hapus
-                </a>
-
-            </td>
-
-        </tr>
-
-        <?php } ?>
-
-    </table>
+</form>
 
 </div>
+
+<h3>Daftar Siswa</h3>
+
+<table>
+
+<tr>
+    <th>ID</th>
+    <th>NIS</th>
+    <th>Nama</th>
+    <th>JK</th>
+    <th>Alamat</th>
+    <th>Tanggal</th>
+    <th>Aksi</th>
+</tr>
+
+<?php while($row = $data->fetch_assoc()) : ?>
+
+<tr>
+
+<td><?= $row['id']; ?></td>
+
+<td><?= htmlspecialchars($row['nis']); ?></td>
+
+<td><?= htmlspecialchars($row['nama']); ?></td>
+
+<td><?= htmlspecialchars($row['jenis_kelamin']); ?></td>
+
+<td><?= htmlspecialchars($row['alamat']); ?></td>
+
+<td><?= $row['created_at']; ?></td>
+
+<td>
+
+<a
+class="btn-edit"
+href="?edit=<?= $row['id']; ?>">
+Edit
+</a>
+
+|
+
+<a
+class="btn-delete"
+href="?hapus=<?= $row['id']; ?>"
+onclick="return confirm('Yakin hapus data?')">
+Hapus
+</a>
+
+</td>
+
+</tr>
+
+<?php endwhile; ?>
+
+</table>
 
 </body>
 </html>
