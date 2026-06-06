@@ -1,42 +1,82 @@
 <?php
 
-/* ==========================
-   KONFIGURASI DATABASE RDS
-   ========================== */
+/*
+|--------------------------------------------------------------------------
+| AMAZON RDS CONFIG
+|--------------------------------------------------------------------------
+*/
 
-$host = "dblatihan.crq462eykeyv.ap-southeast-2.rds.amazonaws.com";
-$user = "admin";
-$password = "admin2026";
-$database = "db_siswa";
+$rds_host = "dblatihan.c83ya4kmsi7u.us-east-1.rds.amazonaws.com";
+$rds_port = 3306;
+$rds_user = "admin";
+$rds_db   = "sekolah";
 
-$conn = new mysqli($host, $user, $password, $database);
+/*
+|--------------------------------------------------------------------------
+| CONNECT TO AMAZON RDS
+|--------------------------------------------------------------------------
+*/
 
-if ($conn->connect_error) {
-    die("Koneksi gagal: " . $conn->connect_error);
+mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+
+try {
+
+    $conn = new mysqli(
+        $rds_host,
+        $rds_user,
+        $rds_pass,
+        $rds_db,
+        $rds_port
+    );
+
+    $conn->set_charset("utf8mb4");
+
+} catch (Exception $e) {
+
+    die("Koneksi ke Amazon RDS gagal : " . $e->getMessage());
 }
 
-/* ==========================
-   CREATE
-   ========================== */
+/*
+|--------------------------------------------------------------------------
+| CREATE TABLE IF NOT EXISTS
+|--------------------------------------------------------------------------
+*/
 
-if (isset($_POST['simpan'])) {
+$conn->query("
+CREATE TABLE IF NOT EXISTS siswa (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nis VARCHAR(20) NOT NULL,
+    nama VARCHAR(100) NOT NULL,
+    kelas VARCHAR(20) NOT NULL,
+    alamat TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)
+");
 
-    $nis = trim($_POST['nis']);
-    $nama = trim($_POST['nama']);
-    $jk = trim($_POST['jenis_kelamin']);
+/*
+|--------------------------------------------------------------------------
+| CREATE
+|--------------------------------------------------------------------------
+*/
+
+if (isset($_POST['tambah'])) {
+
+    $nis    = trim($_POST['nis']);
+    $nama   = trim($_POST['nama']);
+    $kelas  = trim($_POST['kelas']);
     $alamat = trim($_POST['alamat']);
 
     $stmt = $conn->prepare("
         INSERT INTO siswa
-        (nis,nama,jenis_kelamin,alamat)
-        VALUES (?,?,?,?)
+        (nis, nama, kelas, alamat)
+        VALUES (?, ?, ?, ?)
     ");
 
     $stmt->bind_param(
         "ssss",
         $nis,
         $nama,
-        $jk,
+        $kelas,
         $alamat
     );
 
@@ -46,33 +86,57 @@ if (isset($_POST['simpan'])) {
     exit;
 }
 
-/* ==========================
-   UPDATE
-   ========================== */
+/*
+|--------------------------------------------------------------------------
+| DELETE
+|--------------------------------------------------------------------------
+*/
+
+if (isset($_GET['hapus'])) {
+
+    $id = (int)$_GET['hapus'];
+
+    $stmt = $conn->prepare("
+        DELETE FROM siswa
+        WHERE id = ?
+    ");
+
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+
+    header("Location: index.php");
+    exit;
+}
+
+/*
+|--------------------------------------------------------------------------
+| UPDATE
+|--------------------------------------------------------------------------
+*/
 
 if (isset($_POST['update'])) {
 
-    $id = intval($_POST['id']);
-    $nis = trim($_POST['nis']);
-    $nama = trim($_POST['nama']);
-    $jk = trim($_POST['jenis_kelamin']);
+    $id     = (int)$_POST['id'];
+    $nis    = trim($_POST['nis']);
+    $nama   = trim($_POST['nama']);
+    $kelas  = trim($_POST['kelas']);
     $alamat = trim($_POST['alamat']);
 
     $stmt = $conn->prepare("
         UPDATE siswa
         SET
-        nis=?,
-        nama=?,
-        jenis_kelamin=?,
-        alamat=?
-        WHERE id=?
+            nis = ?,
+            nama = ?,
+            kelas = ?,
+            alamat = ?
+        WHERE id = ?
     ");
 
     $stmt->bind_param(
         "ssssi",
         $nis,
         $nama,
-        $jk,
+        $kelas,
         $alamat,
         $id
     );
@@ -83,112 +147,118 @@ if (isset($_POST['update'])) {
     exit;
 }
 
-/* ==========================
-   DELETE
-   ========================== */
+/*
+|--------------------------------------------------------------------------
+| EDIT DATA
+|--------------------------------------------------------------------------
+*/
 
-if (isset($_GET['hapus'])) {
-
-    $id = intval($_GET['hapus']);
-
-    $stmt = $conn->prepare(
-        "DELETE FROM siswa WHERE id=?"
-    );
-
-    $stmt->bind_param("i", $id);
-    $stmt->execute();
-
-    header("Location: index.php");
-    exit;
-}
-
-/* ==========================
-   EDIT MODE
-   ========================== */
-
-$edit = false;
-$dataEdit = [];
+$editData = null;
 
 if (isset($_GET['edit'])) {
 
-    $edit = true;
+    $id = (int)$_GET['edit'];
 
-    $id = intval($_GET['edit']);
-
-    $stmt = $conn->prepare(
-        "SELECT * FROM siswa WHERE id=?"
-    );
+    $stmt = $conn->prepare("
+        SELECT *
+        FROM siswa
+        WHERE id = ?
+    ");
 
     $stmt->bind_param("i", $id);
     $stmt->execute();
 
     $result = $stmt->get_result();
-
-    $dataEdit = $result->fetch_assoc();
+    $editData = $result->fetch_assoc();
 }
-
-/* ==========================
-   READ
-   ========================== */
-
-$data = $conn->query(
-    "SELECT * FROM siswa ORDER BY id DESC"
-);
 
 ?>
 
 <!DOCTYPE html>
-<html>
+<html lang="id">
 <head>
 
-<meta charset="utf-8">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
-<title>CRUD Data Siswa</title>
+<title>CRUD Data Siswa - Amazon RDS</title>
 
 <style>
 
 body{
-    font-family:Arial,sans-serif;
-    margin:40px;
+    font-family:Arial, sans-serif;
+    background:#f4f6f9;
+    margin:30px;
 }
 
-table{
-    border-collapse:collapse;
-    width:100%;
+.container{
+    max-width:1200px;
+    margin:auto;
 }
 
-table,th,td{
-    border:1px solid #ccc;
-}
-
-th,td{
-    padding:10px;
-}
-
-input,textarea,select{
-    width:100%;
-    padding:8px;
-    margin-top:5px;
-}
-
-button{
-    padding:10px 15px;
-    cursor:pointer;
-}
-
-.form-box{
-    background:#f7f7f7;
+.card{
+    background:#fff;
     padding:20px;
+    border-radius:10px;
+    box-shadow:0 2px 10px rgba(0,0,0,.1);
     margin-bottom:20px;
+}
+
+h1,h2,h3{
+    margin-top:0;
+}
+
+input,
+textarea{
+    width:100%;
+    padding:10px;
+    margin-top:5px;
+    margin-bottom:15px;
+    border:1px solid #ccc;
     border-radius:5px;
 }
 
-.btn-edit{
-    color:blue;
+button{
+    background:#0d6efd;
+    color:white;
+    border:none;
+    padding:10px 20px;
+    border-radius:5px;
+    cursor:pointer;
 }
 
-.btn-delete{
+button:hover{
+    background:#0b5ed7;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+    background:white;
+}
+
+table th{
+    background:#0d6efd;
+    color:white;
+}
+
+table th,
+table td{
+    border:1px solid #ddd;
+    padding:10px;
+    text-align:left;
+}
+
+.edit{
+    color:green;
+    text-decoration:none;
+    font-weight:bold;
+}
+
+.delete{
     color:red;
+    text-decoration:none;
+    font-weight:bold;
 }
 
 </style>
@@ -197,68 +267,40 @@ button{
 
 <body>
 
-<h2>CRUD DATA SISWA</h2>
+<div class="container">
 
-<div class="form-box">
+<div class="card">
 
-<h3>
-<?= $edit ? "Edit Siswa" : "Tambah Siswa" ?>
-</h3>
+<?php if($editData){ ?>
+
+<h2>Edit Data Siswa</h2>
 
 <form method="POST">
 
-<?php if($edit): ?>
-<input
-type="hidden"
-name="id"
-value="<?= $dataEdit['id']; ?>">
-<?php endif; ?>
+<input type="hidden"
+       name="id"
+       value="<?= $editData['id']; ?>">
 
 <label>NIS</label>
-
-<input
-type="text"
-name="nis"
-required
-value="<?= $edit ? htmlspecialchars($dataEdit['nis']) : '' ?>">
-
-<br><br>
+<input type="text"
+       name="nis"
+       value="<?= htmlspecialchars($editData['nis']); ?>"
+       required>
 
 <label>Nama</label>
+<input type="text"
+       name="nama"
+       value="<?= htmlspecialchars($editData['nama']); ?>"
+       required>
 
-<input
-type="text"
-name="nama"
-required
-value="<?= $edit ? htmlspecialchars($dataEdit['nama']) : '' ?>">
-
-<br><br>
-
-<label>Jenis Kelamin</label>
-
-<select name="jenis_kelamin">
-
-<option value="L"
-<?= ($edit && $dataEdit['jenis_kelamin']=='L') ? 'selected' : '' ?>>
-Laki-laki
-</option>
-
-<option value="P"
-<?= ($edit && $dataEdit['jenis_kelamin']=='P') ? 'selected' : '' ?>>
-Perempuan
-</option>
-
-</select>
-
-<br><br>
+<label>Kelas</label>
+<input type="text"
+       name="kelas"
+       value="<?= htmlspecialchars($editData['kelas']); ?>"
+       required>
 
 <label>Alamat</label>
-
-<textarea name="alamat"><?= $edit ? htmlspecialchars($dataEdit['alamat']) : '' ?></textarea>
-
-<br><br>
-
-<?php if($edit): ?>
+<textarea name="alamat"><?= htmlspecialchars($editData['alamat']); ?></textarea>
 
 <button type="submit" name="update">
 Update Data
@@ -268,19 +310,45 @@ Update Data
 Batal
 </a>
 
-<?php else: ?>
+</form>
 
-<button type="submit" name="simpan">
+<?php } else { ?>
+
+<h2>Tambah Data Siswa</h2>
+
+<form method="POST">
+
+<label>NIS</label>
+<input type="text"
+       name="nis"
+       required>
+
+<label>Nama</label>
+<input type="text"
+       name="nama"
+       required>
+
+<label>Kelas</label>
+<input type="text"
+       name="kelas"
+       required>
+
+<label>Alamat</label>
+<textarea name="alamat"></textarea>
+
+<button type="submit" name="tambah">
 Simpan Data
 </button>
 
-<?php endif; ?>
-
 </form>
+
+<?php } ?>
 
 </div>
 
-<h3>Daftar Siswa</h3>
+<div class="card">
+
+<h2>Daftar Siswa</h2>
 
 <table>
 
@@ -288,13 +356,23 @@ Simpan Data
     <th>ID</th>
     <th>NIS</th>
     <th>Nama</th>
-    <th>JK</th>
+    <th>Kelas</th>
     <th>Alamat</th>
     <th>Tanggal</th>
     <th>Aksi</th>
 </tr>
 
-<?php while($row = $data->fetch_assoc()) : ?>
+<?php
+
+$result = $conn->query("
+    SELECT *
+    FROM siswa
+    ORDER BY id DESC
+");
+
+while($row = $result->fetch_assoc()) {
+
+?>
 
 <tr>
 
@@ -304,7 +382,7 @@ Simpan Data
 
 <td><?= htmlspecialchars($row['nama']); ?></td>
 
-<td><?= htmlspecialchars($row['jenis_kelamin']); ?></td>
+<td><?= htmlspecialchars($row['kelas']); ?></td>
 
 <td><?= htmlspecialchars($row['alamat']); ?></td>
 
@@ -312,28 +390,30 @@ Simpan Data
 
 <td>
 
-<a
-class="btn-edit"
-href="?edit=<?= $row['id']; ?>">
-Edit
+<a class="edit"
+   href="?edit=<?= $row['id']; ?>">
+   Edit
 </a>
 
 |
 
-<a
-class="btn-delete"
-href="?hapus=<?= $row['id']; ?>"
-onclick="return confirm('Yakin hapus data?')">
-Hapus
+<a class="delete"
+   href="?hapus=<?= $row['id']; ?>"
+   onclick="return confirm('Yakin ingin menghapus data ini?')">
+   Hapus
 </a>
 
 </td>
 
 </tr>
 
-<?php endwhile; ?>
+<?php } ?>
 
 </table>
+
+</div>
+
+</div>
 
 </body>
 </html>
