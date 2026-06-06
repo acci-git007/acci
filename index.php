@@ -1,419 +1,229 @@
 <?php
-
-/*
-|--------------------------------------------------------------------------
-| AMAZON RDS CONFIG
-|--------------------------------------------------------------------------
-*/
-
-$rds_host = "dblatihan.c83ya4kmsi7u.us-east-1.rds.amazonaws.com";
-$rds_port = 3306;
-$rds_user = "admin";
-$rds_db   = "sekolah";
-
-/*
-|--------------------------------------------------------------------------
-| CONNECT TO AMAZON RDS
-|--------------------------------------------------------------------------
-*/
-
-mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+// ======================
+// KONFIGURASI AWS RDS
+// ======================
+$host = "dblatihan.c83ya4kmsi7u.us-east-1.rds.amazonaws.com";
+$dbname = "sekolah";
+$username = "admin";
+$password = "admin2026";
 
 try {
-
-    $conn = new mysqli(
-        $rds_host,
-        $rds_user,
-        $rds_pass,
-        $rds_db,
-        $rds_port
+    $pdo = new PDO(
+        "mysql:host=$host;dbname=$dbname;charset=utf8",
+        $username,
+        $password
     );
-
-    $conn->set_charset("utf8mb4");
-
-} catch (Exception $e) {
-
-    die("Koneksi ke Amazon RDS gagal : " . $e->getMessage());
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+} catch(PDOException $e) {
+    die("Koneksi gagal: " . $e->getMessage());
 }
 
-/*
-|--------------------------------------------------------------------------
-| CREATE TABLE IF NOT EXISTS
-|--------------------------------------------------------------------------
-*/
-
-$conn->query("
-CREATE TABLE IF NOT EXISTS siswa (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    nis VARCHAR(20) NOT NULL,
-    nama VARCHAR(100) NOT NULL,
-    kelas VARCHAR(20) NOT NULL,
-    alamat TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-)
-");
-
-/*
-|--------------------------------------------------------------------------
-| CREATE
-|--------------------------------------------------------------------------
-*/
-
-if (isset($_POST['tambah'])) {
-
-    $nis    = trim($_POST['nis']);
-    $nama   = trim($_POST['nama']);
-    $kelas  = trim($_POST['kelas']);
-    $alamat = trim($_POST['alamat']);
-
-    $stmt = $conn->prepare("
-        INSERT INTO siswa
-        (nis, nama, kelas, alamat)
-        VALUES (?, ?, ?, ?)
+// ======================
+// CREATE
+// ======================
+if(isset($_POST['tambah'])) {
+    $stmt = $pdo->prepare("
+        INSERT INTO siswa(nama, kelas, alamat)
+        VALUES (?, ?, ?)
     ");
-
-    $stmt->bind_param(
-        "ssss",
-        $nis,
-        $nama,
-        $kelas,
-        $alamat
-    );
-
-    $stmt->execute();
+    $stmt->execute([
+        $_POST['nama'],
+        $_POST['kelas'],
+        $_POST['alamat']
+    ]);
 
     header("Location: index.php");
     exit;
 }
 
-/*
-|--------------------------------------------------------------------------
-| DELETE
-|--------------------------------------------------------------------------
-*/
-
-if (isset($_GET['hapus'])) {
-
-    $id = (int)$_GET['hapus'];
-
-    $stmt = $conn->prepare("
-        DELETE FROM siswa
-        WHERE id = ?
-    ");
-
-    $stmt->bind_param("i", $id);
-    $stmt->execute();
-
-    header("Location: index.php");
-    exit;
-}
-
-/*
-|--------------------------------------------------------------------------
-| UPDATE
-|--------------------------------------------------------------------------
-*/
-
-if (isset($_POST['update'])) {
-
-    $id     = (int)$_POST['id'];
-    $nis    = trim($_POST['nis']);
-    $nama   = trim($_POST['nama']);
-    $kelas  = trim($_POST['kelas']);
-    $alamat = trim($_POST['alamat']);
-
-    $stmt = $conn->prepare("
+// ======================
+// UPDATE
+// ======================
+if(isset($_POST['update'])) {
+    $stmt = $pdo->prepare("
         UPDATE siswa
-        SET
-            nis = ?,
-            nama = ?,
-            kelas = ?,
-            alamat = ?
-        WHERE id = ?
+        SET nama=?, kelas=?, alamat=?
+        WHERE id=?
     ");
 
-    $stmt->bind_param(
-        "ssssi",
-        $nis,
-        $nama,
-        $kelas,
-        $alamat,
-        $id
-    );
-
-    $stmt->execute();
+    $stmt->execute([
+        $_POST['nama'],
+        $_POST['kelas'],
+        $_POST['alamat'],
+        $_POST['id']
+    ]);
 
     header("Location: index.php");
     exit;
 }
 
-/*
-|--------------------------------------------------------------------------
-| EDIT DATA
-|--------------------------------------------------------------------------
-*/
+// ======================
+// DELETE
+// ======================
+if(isset($_GET['hapus'])) {
+    $stmt = $pdo->prepare("DELETE FROM siswa WHERE id=?");
+    $stmt->execute([$_GET['hapus']]);
 
-$editData = null;
-
-if (isset($_GET['edit'])) {
-
-    $id = (int)$_GET['edit'];
-
-    $stmt = $conn->prepare("
-        SELECT *
-        FROM siswa
-        WHERE id = ?
-    ");
-
-    $stmt->bind_param("i", $id);
-    $stmt->execute();
-
-    $result = $stmt->get_result();
-    $editData = $result->fetch_assoc();
+    header("Location: index.php");
+    exit;
 }
+
+// ======================
+// EDIT DATA
+// ======================
+$edit = null;
+
+if(isset($_GET['edit'])) {
+    $stmt = $pdo->prepare("
+        SELECT * FROM siswa WHERE id=?
+    ");
+    $stmt->execute([$_GET['edit']]);
+    $edit = $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
+// ======================
+// READ DATA
+// ======================
+$data = $pdo->query("
+    SELECT * FROM siswa
+    ORDER BY id DESC
+")->fetchAll(PDO::FETCH_ASSOC);
 
 ?>
 
 <!DOCTYPE html>
-<html lang="id">
+<html>
 <head>
+    <title>CRUD Data Siswa AWS RDS</title>
 
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body{
+            font-family: Arial;
+            margin:40px;
+        }
 
-<title>CRUD Data Siswa - Amazon RDS</title>
+        input, textarea{
+            width:100%;
+            padding:8px;
+            margin-bottom:10px;
+        }
 
-<style>
+        button{
+            padding:10px 20px;
+            background:#007bff;
+            color:white;
+            border:none;
+            cursor:pointer;
+        }
 
-body{
-    font-family:Arial, sans-serif;
-    background:#f4f6f9;
-    margin:30px;
-}
+        table{
+            width:100%;
+            border-collapse:collapse;
+            margin-top:20px;
+        }
 
-.container{
-    max-width:1200px;
-    margin:auto;
-}
+        table, th, td{
+            border:1px solid #ddd;
+        }
 
-.card{
-    background:#fff;
-    padding:20px;
-    border-radius:10px;
-    box-shadow:0 2px 10px rgba(0,0,0,.1);
-    margin-bottom:20px;
-}
+        th, td{
+            padding:10px;
+        }
 
-h1,h2,h3{
-    margin-top:0;
-}
-
-input,
-textarea{
-    width:100%;
-    padding:10px;
-    margin-top:5px;
-    margin-bottom:15px;
-    border:1px solid #ccc;
-    border-radius:5px;
-}
-
-button{
-    background:#0d6efd;
-    color:white;
-    border:none;
-    padding:10px 20px;
-    border-radius:5px;
-    cursor:pointer;
-}
-
-button:hover{
-    background:#0b5ed7;
-}
-
-table{
-    width:100%;
-    border-collapse:collapse;
-    background:white;
-}
-
-table th{
-    background:#0d6efd;
-    color:white;
-}
-
-table th,
-table td{
-    border:1px solid #ddd;
-    padding:10px;
-    text-align:left;
-}
-
-.edit{
-    color:green;
-    text-decoration:none;
-    font-weight:bold;
-}
-
-.delete{
-    color:red;
-    text-decoration:none;
-    font-weight:bold;
-}
-
-</style>
-
+        a{
+            text-decoration:none;
+        }
+    </style>
 </head>
-
 <body>
 
-<div class="container">
+<h2>CRUD Data Siswa (AWS RDS MySQL)</h2>
 
-<div class="card">
+<form method="post">
 
-<?php if($editData){ ?>
+    <input
+        type="hidden"
+        name="id"
+        value="<?= $edit['id'] ?? '' ?>"
+    >
 
-<h2>Edit Data Siswa</h2>
+    <label>Nama</label>
+    <input
+        type="text"
+        name="nama"
+        required
+        value="<?= $edit['nama'] ?? '' ?>"
+    >
 
-<form method="POST">
+    <label>Kelas</label>
+    <input
+        type="text"
+        name="kelas"
+        required
+        value="<?= $edit['kelas'] ?? '' ?>"
+    >
 
-<input type="hidden"
-       name="id"
-       value="<?= $editData['id']; ?>">
+    <label>Alamat</label>
+    <textarea
+        name="alamat"
+    ><?= $edit['alamat'] ?? '' ?></textarea>
 
-<label>NIS</label>
-<input type="text"
-       name="nis"
-       value="<?= htmlspecialchars($editData['nis']); ?>"
-       required>
-
-<label>Nama</label>
-<input type="text"
-       name="nama"
-       value="<?= htmlspecialchars($editData['nama']); ?>"
-       required>
-
-<label>Kelas</label>
-<input type="text"
-       name="kelas"
-       value="<?= htmlspecialchars($editData['kelas']); ?>"
-       required>
-
-<label>Alamat</label>
-<textarea name="alamat"><?= htmlspecialchars($editData['alamat']); ?></textarea>
-
-<button type="submit" name="update">
-Update Data
-</button>
-
-<a href="index.php">
-Batal
-</a>
-
-</form>
-
-<?php } else { ?>
-
-<h2>Tambah Data Siswa</h2>
-
-<form method="POST">
-
-<label>NIS</label>
-<input type="text"
-       name="nis"
-       required>
-
-<label>Nama</label>
-<input type="text"
-       name="nama"
-       required>
-
-<label>Kelas</label>
-<input type="text"
-       name="kelas"
-       required>
-
-<label>Alamat</label>
-<textarea name="alamat"></textarea>
-
-<button type="submit" name="tambah">
-Simpan Data
-</button>
+    <?php if($edit): ?>
+        <button type="submit" name="update">
+            Update Data
+        </button>
+        <a href="index.php">Batal</a>
+    <?php else: ?>
+        <button type="submit" name="tambah">
+            Simpan Data
+        </button>
+    <?php endif; ?>
 
 </form>
-
-<?php } ?>
-
-</div>
-
-<div class="card">
-
-<h2>Daftar Siswa</h2>
 
 <table>
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Nama</th>
+            <th>Kelas</th>
+            <th>Alamat</th>
+            <th>Tanggal</th>
+            <th>Aksi</th>
+        </tr>
+    </thead>
 
-<tr>
-    <th>ID</th>
-    <th>NIS</th>
-    <th>Nama</th>
-    <th>Kelas</th>
-    <th>Alamat</th>
-    <th>Tanggal</th>
-    <th>Aksi</th>
-</tr>
+    <tbody>
 
-<?php
+    <?php foreach($data as $row): ?>
 
-$result = $conn->query("
-    SELECT *
-    FROM siswa
-    ORDER BY id DESC
-");
+        <tr>
+            <td><?= $row['id'] ?></td>
+            <td><?= htmlspecialchars($row['nama']) ?></td>
+            <td><?= htmlspecialchars($row['kelas']) ?></td>
+            <td><?= htmlspecialchars($row['alamat']) ?></td>
+            <td><?= $row['created_at'] ?></td>
 
-while($row = $result->fetch_assoc()) {
+            <td>
+                <a href="?edit=<?= $row['id'] ?>">
+                    Edit
+                </a>
 
-?>
+                |
 
-<tr>
+                <a
+                    href="?hapus=<?= $row['id'] ?>"
+                    onclick="return confirm('Hapus data?')"
+                >
+                    Hapus
+                </a>
+            </td>
+        </tr>
 
-<td><?= $row['id']; ?></td>
+    <?php endforeach; ?>
 
-<td><?= htmlspecialchars($row['nis']); ?></td>
-
-<td><?= htmlspecialchars($row['nama']); ?></td>
-
-<td><?= htmlspecialchars($row['kelas']); ?></td>
-
-<td><?= htmlspecialchars($row['alamat']); ?></td>
-
-<td><?= $row['created_at']; ?></td>
-
-<td>
-
-<a class="edit"
-   href="?edit=<?= $row['id']; ?>">
-   Edit
-</a>
-
-|
-
-<a class="delete"
-   href="?hapus=<?= $row['id']; ?>"
-   onclick="return confirm('Yakin ingin menghapus data ini?')">
-   Hapus
-</a>
-
-</td>
-
-</tr>
-
-<?php } ?>
-
+    </tbody>
 </table>
-
-</div>
-
-</div>
 
 </body>
 </html>
