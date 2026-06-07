@@ -1,245 +1,281 @@
 <?php
-require __DIR__ . '/vendor/autoload.php';
+require 'vendor/autoload.php';
 
 use Aws\S3\S3Client;
 
-/* =========================
-   DATABASE RDS CONFIG
-========================= */
+/*
+|--------------------------------------------------------------------------
+| CONFIG DATABASE RDS
+|--------------------------------------------------------------------------
+*/
 
 $host = "db-siswa.c83ya4kmsi7u.us-east-1.rds.amazonaws.com";
-$db   = "db_siswa";
 $user = "admin";
 $pass = "admin2026";
+$db   = "studentdb";
 
-$pdo = new PDO(
-    "mysql:host=$host;dbname=$db;charset=utf8",
-    $user,
-    $pass,
-    [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
-);
+$conn = new mysqli($host, $user, $pass, $db);
 
-/* =========================
-   S3 CONFIG
-========================= */
+if ($conn->connect_error) {
+    die("Koneksi gagal: " . $conn->connect_error);
+}
 
-$bucket = "crud-siswa-foto";
+/*
+|--------------------------------------------------------------------------
+| CONFIG S3
+|--------------------------------------------------------------------------
+*/
 
 $s3 = new S3Client([
     'version' => 'latest',
     'region'  => 'us-east-1'
 ]);
 
-/* =========================
-   CREATE
-========================= */
+$bucket = "crud-siswa-foto";
 
-if(isset($_POST['create'])){
+/*
+|--------------------------------------------------------------------------
+| CREATE TABLE (optional manual already OK)
+|--------------------------------------------------------------------------
+*/
 
-    $fotoUrl = null;
-    $fotoKey = null;
+/*
+|--------------------------------------------------------------------------
+| INSERT DATA
+|--------------------------------------------------------------------------
+*/
 
-    if($_FILES['foto']['size'] > 0){
+if (isset($_POST['simpan'])) {
 
-        $filename = time().'_'.$_FILES['foto']['name'];
+    $nis    = $_POST['nis'];
+    $nama   = $_POST['nama'];
+    $kelas  = $_POST['kelas'];
+    $alamat = $_POST['alamat'];
 
-        $upload = $s3->putObject([
-            'Bucket' => $bucket,
-            'Key'    => 'siswa/'.$filename,
+    $foto_url = "";
+
+    if (!empty($_FILES['foto']['name'])) {
+
+        $ext = pathinfo($_FILES['foto']['name'], PATHINFO_EXTENSION);
+        $fileName = uniqid() . "." . $ext;
+
+        // UPLOAD KE S3
+        $s3->putObject([
+            'Bucket'     => $bucket,
+            'Key'        => $fileName,
             'SourceFile' => $_FILES['foto']['tmp_name'],
-            'ACL' => 'public-read'
+            'ContentType'=> $_FILES['foto']['type']
         ]);
 
-        $fotoUrl = $upload['ObjectURL'];
-        $fotoKey = 'siswa/'.$filename;
+        // URL PUBLIC S3
+        $foto_url = "https://{$bucket}.s3.amazonaws.com/{$fileName}";
     }
 
-    $stmt = $pdo->prepare("
-        INSERT INTO siswa (nis,nama,kelas,alamat,foto_url,foto_key)
-        VALUES (?,?,?,?,?,?)
+    $stmt = $conn->prepare("
+        INSERT INTO students (nis,nama,kelas,alamat,foto)
+        VALUES (?,?,?,?,?)
     ");
 
-    $stmt->execute([
-        $_POST['nis'],
-        $_POST['nama'],
-        $_POST['kelas'],
-        $_POST['alamat'],
-        $fotoUrl,
-        $fotoKey
-    ]);
+    $stmt->bind_param(
+        "sssss",
+        $nis,
+        $nama,
+        $kelas,
+        $alamat,
+        $foto_url
+    );
 
-    header("Location:index.php");
+    $stmt->execute();
+
+    header("Location: index.php");
     exit;
 }
 
-/* =========================
-   DELETE
-========================= */
+/*
+|--------------------------------------------------------------------------
+| DELETE DATA
+|--------------------------------------------------------------------------
+*/
 
-if(isset($_GET['delete'])){
+if (isset($_GET['hapus'])) {
 
-    $id = $_GET['delete'];
+    $id = $_GET['hapus'];
 
-    $stmt = $pdo->prepare("SELECT * FROM siswa WHERE id=?");
-    $stmt->execute([$id]);
-    $row = $stmt->fetch();
+    $stmt = $conn->prepare("DELETE FROM students WHERE id=?");
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
 
-    if($row){
-
-        if($row['foto_key']){
-
-            $s3->deleteObject([
-                'Bucket' => $bucket,
-                'Key'    => $row['foto_key']
-            ]);
-        }
-
-        $pdo->prepare("DELETE FROM siswa WHERE id=?")
-            ->execute([$id]);
-    }
-
-    header("Location:index.php");
+    header("Location: index.php");
     exit;
 }
 
-/* =========================
-   EDIT DATA
-========================= */
+/*
+|--------------------------------------------------------------------------
+| GET DATA EDIT
+|--------------------------------------------------------------------------
+*/
 
 $edit = null;
 
-if(isset($_GET['edit'])){
+if (isset($_GET['edit'])) {
 
-    $stmt = $pdo->prepare("SELECT * FROM siswa WHERE id=?");
-    $stmt->execute([$_GET['edit']]);
-    $edit = $stmt->fetch();
+    $id = $_GET['edit'];
+
+    $stmt = $conn->prepare("SELECT * FROM students WHERE id=?");
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+
+    $edit = $stmt->get_result()->fetch_assoc();
 }
 
-/* =========================
-   UPDATE
-========================= */
+/*
+|--------------------------------------------------------------------------
+| UPDATE DATA
+|--------------------------------------------------------------------------
+*/
 
-if(isset($_POST['update'])){
+if (isset($_POST['update'])) {
 
-    $id = $_POST['id'];
+    $id     = $_POST['id'];
+    $nis    = $_POST['nis'];
+    $nama   = $_POST['nama'];
+    $kelas  = $_POST['kelas'];
+    $alamat = $_POST['alamat'];
 
-    $stmt = $pdo->prepare("SELECT * FROM siswa WHERE id=?");
-    $stmt->execute([$id]);
-    $old = $stmt->fetch();
+    $foto_url = $_POST['old_foto'];
 
-    $fotoUrl = $old['foto_url'];
-    $fotoKey = $old['foto_key'];
+    if (!empty($_FILES['foto']['name'])) {
 
-    if($_FILES['foto']['size'] > 0){
+        $ext = pathinfo($_FILES['foto']['name'], PATHINFO_EXTENSION);
+        $fileName = uniqid() . "." . $ext;
 
-        if($fotoKey){
-            $s3->deleteObject([
-                'Bucket' => $bucket,
-                'Key' => $fotoKey
-            ]);
-        }
-
-        $filename = time().'_'.$_FILES['foto']['name'];
-
-        $upload = $s3->putObject([
-            'Bucket' => $bucket,
-            'Key'    => 'siswa/'.$filename,
+        // upload baru ke S3
+        $s3->putObject([
+            'Bucket'     => $bucket,
+            'Key'        => $fileName,
             'SourceFile' => $_FILES['foto']['tmp_name'],
-            'ACL' => 'public-read'
+            'ContentType'=> $_FILES['foto']['type']
         ]);
 
-        $fotoUrl = $upload['ObjectURL'];
-        $fotoKey = 'siswa/'.$filename;
+        $foto_url = "https://{$bucket}.s3.amazonaws.com/{$fileName}";
     }
 
-    $pdo->prepare("
-        UPDATE siswa
-        SET nis=?, nama=?, kelas=?, alamat=?, foto_url=?, foto_key=?
+    $stmt = $conn->prepare("
+        UPDATE students
+        SET nis=?, nama=?, kelas=?, alamat=?, foto=?
         WHERE id=?
-    ")->execute([
-        $_POST['nis'],
-        $_POST['nama'],
-        $_POST['kelas'],
-        $_POST['alamat'],
-        $fotoUrl,
-        $fotoKey,
-        $id
-    ]);
+    ");
 
-    header("Location:index.php");
+    $stmt->bind_param(
+        "sssssi",
+        $nis,
+        $nama,
+        $kelas,
+        $alamat,
+        $foto_url,
+        $id
+    );
+
+    $stmt->execute();
+
+    header("Location: index.php");
     exit;
 }
 
-/* =========================
-   READ DATA
-========================= */
+/*
+|--------------------------------------------------------------------------
+| GET ALL DATA
+|--------------------------------------------------------------------------
+*/
 
-$data = $pdo->query("SELECT * FROM siswa ORDER BY id DESC");
+$data = $conn->query("SELECT * FROM students ORDER BY id DESC");
+
 ?>
 
 <!DOCTYPE html>
 <html>
 <head>
-<title>CRUD SISWA AWS</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>CRUD Siswa AWS + S3</title>
+
+    <style>
+        body { font-family: Arial; margin: 40px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        table, th, td { border: 1px solid #ccc; }
+        th, td { padding: 10px; }
+        input, textarea { width: 100%; padding: 8px; margin: 5px 0; }
+        button { padding: 10px 20px; cursor: pointer; }
+        img { width: 80px; border-radius: 5px; }
+    </style>
 </head>
 
-<body class="container mt-4">
+<body>
 
-<h3>CRUD SISWA AWS (EC2 + RDS + S3)</h3>
+<h2>CRUD Data Siswa + AWS S3</h2>
 
-<!-- FORM -->
-<form method="POST" enctype="multipart/form-data" class="card p-3 mb-4">
-
-<input type="hidden" name="id" value="<?= $edit['id'] ?? '' ?>">
-
-<input name="nis" class="form-control mb-2" placeholder="NIS" value="<?= $edit['nis'] ?? '' ?>">
-
-<input name="nama" class="form-control mb-2" placeholder="Nama" value="<?= $edit['nama'] ?? '' ?>">
-
-<input name="kelas" class="form-control mb-2" placeholder="Kelas" value="<?= $edit['kelas'] ?? '' ?>">
-
-<textarea name="alamat" class="form-control mb-2" placeholder="Alamat"><?= $edit['alamat'] ?? '' ?></textarea>
-
-<input type="file" name="foto" class="form-control mb-2">
+<form method="POST" enctype="multipart/form-data">
 
 <?php if($edit): ?>
-<button name="update" class="btn btn-warning">Update</button>
-<a href="index.php" class="btn btn-secondary">Batal</a>
+    <input type="hidden" name="id" value="<?= $edit['id'] ?>">
+    <input type="hidden" name="old_foto" value="<?= $edit['foto'] ?>">
+<?php endif; ?>
+
+NIS
+<input type="text" name="nis" required value="<?= $edit['nis'] ?? '' ?>">
+
+Nama
+<input type="text" name="nama" required value="<?= $edit['nama'] ?? '' ?>">
+
+Kelas
+<input type="text" name="kelas" required value="<?= $edit['kelas'] ?? '' ?>">
+
+Alamat
+<textarea name="alamat"><?= $edit['alamat'] ?? '' ?></textarea>
+
+Foto
+<input type="file" name="foto">
+
+<br><br>
+
+<?php if($edit): ?>
+    <button name="update">Update</button>
+    <a href="index.php">Batal</a>
 <?php else: ?>
-<button name="create" class="btn btn-primary">Simpan</button>
+    <button name="simpan">Simpan</button>
 <?php endif; ?>
 
 </form>
 
-<!-- TABLE -->
-<table class="table table-bordered">
+<hr>
 
+<table>
 <tr>
-<th>NIS</th>
-<th>Nama</th>
-<th>Kelas</th>
-<th>Foto</th>
-<th>Aksi</th>
+    <th>ID</th>
+    <th>NIS</th>
+    <th>Nama</th>
+    <th>Kelas</th>
+    <th>Foto</th>
+    <th>Aksi</th>
 </tr>
 
-<?php while($r = $data->fetch()): ?>
+<?php while($row = $data->fetch_assoc()): ?>
 <tr>
-<td><?= $r['nis'] ?></td>
-<td><?= $r['nama'] ?></td>
-<td><?= $r['kelas'] ?></td>
-<td>
-<?php if($r['foto_url']) : ?>
-<img src="<?= $r['foto_url'] ?>" width="80">
-<?php endif; ?>
-</td>
-<td>
-<a href="?edit=<?= $r['id'] ?>" class="btn btn-warning btn-sm">Edit</a>
-<a href="?delete=<?= $r['id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('Hapus?')">Hapus</a>
-</td>
+    <td><?= $row['id'] ?></td>
+    <td><?= $row['nis'] ?></td>
+    <td><?= $row['nama'] ?></td>
+    <td><?= $row['kelas'] ?></td>
+
+    <td>
+        <?php if($row['foto']): ?>
+            <img src="<?= $row['foto'] ?>">
+        <?php endif; ?>
+    </td>
+
+    <td>
+        <a href="?edit=<?= $row['id'] ?>">Edit</a> |
+        <a href="?hapus=<?= $row['id'] ?>" onclick="return confirm('Hapus?')">Hapus</a>
+    </td>
 </tr>
 <?php endwhile; ?>
-
 </table>
 
 </body>
