@@ -1,19 +1,26 @@
 <?php
 
-/* ==========================
-   KONFIGURASI AMAZON RDS
-========================== */
+require __DIR__ . '/vendor/autoload.php';
 
-$host = "dbtraining01.c83ya4kmsi7u.us-east-1.rds.amazonaws.com";
-$dbname = "sekolah";
-$user = "admin";
-$pass = "admin2026";
+use Aws\S3\S3Client;
+
+/*
+|--------------------------------------------------------------------------
+| DATABASE RDS
+|--------------------------------------------------------------------------
+*/
+
+$host = "db-siswa.c83ya4kmsi7u.us-east-1.rds.amazonaws.com";
+$dbname = "db_siswa";
+$username = "admin";
+$password = "admin2026";
 
 try {
+
     $pdo = new PDO(
         "mysql:host=$host;dbname=$dbname;charset=utf8mb4",
-        $user,
-        $pass
+        $username,
+        $password
     );
 
     $pdo->setAttribute(
@@ -21,77 +28,136 @@ try {
         PDO::ERRMODE_EXCEPTION
     );
 
-} catch(PDOException $e){
-    die("Koneksi gagal : " . $e->getMessage());
+} catch (PDOException $e) {
+
+    die("Database Error : " . $e->getMessage());
+
 }
 
-/* ==========================
-   TAMBAH DATA
-========================== */
+/*
+|--------------------------------------------------------------------------
+| AWS S3
+|--------------------------------------------------------------------------
+*/
 
-if(isset($_POST['tambah'])){
+$bucket = "crud-siswa-photo";
+
+$s3 = new S3Client([
+    'version' => 'latest',
+    'region'  => 'East us-east-1'
+]);
+
+/*
+|--------------------------------------------------------------------------
+| CREATE
+|--------------------------------------------------------------------------
+*/
+
+if(isset($_POST['create'])){
+
+    $fotoUrl = null;
+
+    if(
+        isset($_FILES['foto']) &&
+        $_FILES['foto']['size'] > 0
+    ){
+
+        $filename =
+            time() . "_" .
+            basename($_FILES['foto']['name']);
+
+        $upload = $s3->putObject([
+            'Bucket' => $bucket,
+            'Key' => 'siswa/' . $filename,
+            'SourceFile' =>
+                $_FILES['foto']['tmp_name']
+        ]);
+
+        $fotoUrl = $upload['ObjectURL'];
+    }
 
     $stmt = $pdo->prepare("
-        INSERT INTO siswa(nis,nama,alamat)
-        VALUES(?,?,?)
+        INSERT INTO siswa
+        (
+            nis,
+            nama,
+            kelas,
+            alamat,
+            foto_url
+        )
+        VALUES
+        (
+            ?,?,?,?,?
+        )
     ");
 
     $stmt->execute([
         $_POST['nis'],
         $_POST['nama'],
-        $_POST['alamat']
-    ]);
-
-    header("Location: index.php");
-    exit;
-}
-
-/* ==========================
-   UPDATE DATA
-========================== */
-
-if(isset($_POST['update'])){
-
-    $stmt = $pdo->prepare("
-        UPDATE siswa
-        SET nis=?,
-            nama=?,
-            alamat=?
-        WHERE id=?
-    ");
-
-    $stmt->execute([
-        $_POST['nis'],
-        $_POST['nama'],
+        $_POST['kelas'],
         $_POST['alamat'],
-        $_POST['id']
+        $fotoUrl
     ]);
 
-    header("Location: index.php");
+    header("Location:index.php");
     exit;
 }
 
-/* ==========================
-   HAPUS DATA
-========================== */
+/*
+|--------------------------------------------------------------------------
+| DELETE
+|--------------------------------------------------------------------------
+*/
 
-if(isset($_GET['hapus'])){
+if(isset($_GET['delete'])){
+
+    $id = $_GET['delete'];
 
     $stmt = $pdo->prepare(
-        "DELETE FROM siswa WHERE id=?"
+        "SELECT * FROM siswa WHERE id=?"
     );
 
-    $stmt->execute([
-        $_GET['hapus']
-    ]);
+    $stmt->execute([$id]);
 
-    header("Location: index.php");
+    $data = $stmt->fetch();
+
+    if($data){
+
+        if(!empty($data['foto_url'])){
+
+            $key = parse_url(
+                $data['foto_url'],
+                PHP_URL_PATH
+            );
+
+            $key = ltrim($key,'/');
+
+            try {
+
+                $s3->deleteObject([
+                    'Bucket' => $bucket,
+                    'Key' => $key
+                ]);
+
+            } catch(Exception $e){}
+        }
+
+        $delete = $pdo->prepare(
+            "DELETE FROM siswa WHERE id=?"
+        );
+
+        $delete->execute([$id]);
+    }
+
+    header("Location:index.php");
     exit;
 }
 
-/* ==========================
-   DATA EDIT
-========================== */
+/*
+|--------------------------------------------------------------------------
+| EDIT DATA
+|--------------------------------------------------------------------------
+*/
 
 $edit = null;
 
@@ -105,179 +171,269 @@ if(isset($_GET['edit'])){
         $_GET['edit']
     ]);
 
-    $edit = $stmt->fetch(PDO::FETCH_ASSOC);
+    $edit = $stmt->fetch();
 }
 
-/* ==========================
-   LIST DATA
-========================== */
+/*
+|--------------------------------------------------------------------------
+| UPDATE
+|--------------------------------------------------------------------------
+*/
 
-$data = $pdo->query(
-    "SELECT * FROM siswa ORDER BY id DESC"
-)->fetchAll(PDO::FETCH_ASSOC);
+if(isset($_POST['update'])){
+
+    $id = $_POST['id'];
+
+    $stmt = $pdo->prepare(
+        "SELECT * FROM siswa WHERE id=?"
+    );
+
+    $stmt->execute([$id]);
+
+    $old = $stmt->fetch();
+
+    $fotoUrl = $old['foto_url'];
+
+    if(
+        isset($_FILES['foto']) &&
+        $_FILES['foto']['size'] > 0
+    ){
+
+        if(!empty($old['foto_url'])){
+
+            $oldKey = parse_url(
+                $old['foto_url'],
+                PHP_URL_PATH
+            );
+
+            $oldKey = ltrim($oldKey,'/');
+
+            try {
+
+                $s3->deleteObject([
+                    'Bucket' => $bucket,
+                    'Key' => $oldKey
+                ]);
+
+            } catch(Exception $e){}
+        }
+
+        $filename =
+            time() . "_" .
+            basename($_FILES['foto']['name']);
+
+        $upload = $s3->putObject([
+            'Bucket' => $bucket,
+            'Key' => 'siswa/' . $filename,
+            'SourceFile' =>
+                $_FILES['foto']['tmp_name']
+        ]);
+
+        $fotoUrl = $upload['ObjectURL'];
+    }
+
+    $update = $pdo->prepare("
+        UPDATE siswa
+        SET
+        nis=?,
+        nama=?,
+        kelas=?,
+        alamat=?,
+        foto_url=?
+        WHERE id=?
+    ");
+
+    $update->execute([
+        $_POST['nis'],
+        $_POST['nama'],
+        $_POST['kelas'],
+        $_POST['alamat'],
+        $fotoUrl,
+        $id
+    ]);
+
+    header("Location:index.php");
+    exit;
+}
+
+/*
+|--------------------------------------------------------------------------
+| READ
+|--------------------------------------------------------------------------
+*/
+
+$data = $pdo->query("
+SELECT *
+FROM siswa
+ORDER BY id DESC
+");
 
 ?>
 
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
-<title>CRUD Data Siswa</title>
 
-<style>
+<title>CRUD SISWA AWS</title>
 
-body{
-    font-family: Arial;
-    margin:40px;
-}
-
-table{
-    border-collapse: collapse;
-    width:100%;
-}
-
-table,th,td{
-    border:1px solid #ccc;
-}
-
-th,td{
-    padding:10px;
-}
-
-input,textarea{
-    width:100%;
-    padding:8px;
-}
-
-button{
-    padding:10px 20px;
-    background:#007bff;
-    color:white;
-    border:none;
-    cursor:pointer;
-}
-
-.btn-hapus{
-    color:red;
-}
-
-.btn-edit{
-    color:green;
-}
-
-</style>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 
 </head>
+
 <body>
 
-<h2>CRUD Data Siswa</h2>
+<div class="container mt-5">
 
-<h3>
-<?= $edit ? 'Edit Data Siswa' : 'Tambah Data Siswa'; ?>
-</h3>
+<h2 class="mb-4">
+CRUD SISWA AWS
+</h2>
 
-<form method="POST">
+<div class="card mb-4">
 
-    <?php if($edit): ?>
-        <input type="hidden" name="id"
-               value="<?= $edit['id']; ?>">
-    <?php endif; ?>
+<div class="card-body">
 
-    <p>
-        <label>NIS</label><br>
-        <input
-            type="text"
-            name="nis"
-            required
-            value="<?= $edit['nis'] ?? ''; ?>"
-        >
-    </p>
+<form method="POST" enctype="multipart/form-data">
 
-    <p>
-        <label>Nama</label><br>
-        <input
-            type="text"
-            name="nama"
-            required
-            value="<?= $edit['nama'] ?? ''; ?>"
-        >
-    </p>
+<input type="hidden"
+name="id"
+value="<?= $edit['id'] ?? '' ?>">
 
-    <p>
-        <label>Alamat</label><br>
-        <textarea name="alamat"><?= $edit['alamat'] ?? ''; ?></textarea>
-    </p>
+<div class="mb-3">
+<label>NIS</label>
+<input type="text"
+name="nis"
+required
+class="form-control"
+value="<?= $edit['nis'] ?? '' ?>">
+</div>
 
-    <?php if($edit): ?>
+<div class="mb-3">
+<label>Nama</label>
+<input type="text"
+name="nama"
+required
+class="form-control"
+value="<?= $edit['nama'] ?? '' ?>">
+</div>
 
-        <button type="submit" name="update">
-            Update Data
-        </button>
+<div class="mb-3">
+<label>Kelas</label>
+<input type="text"
+name="kelas"
+required
+class="form-control"
+value="<?= $edit['kelas'] ?? '' ?>">
+</div>
 
-        <a href="index.php">
-            Batal
-        </a>
+<div class="mb-3">
+<label>Alamat</label>
+<textarea
+name="alamat"
+class="form-control"><?= $edit['alamat'] ?? '' ?></textarea>
+</div>
 
-    <?php else: ?>
+<div class="mb-3">
+<label>Foto</label>
+<input type="file"
+name="foto"
+class="form-control">
+</div>
 
-        <button type="submit" name="tambah">
-            Simpan Data
-        </button>
+<?php if($edit): ?>
 
-    <?php endif; ?>
+<button
+type="submit"
+name="update"
+class="btn btn-warning">
+Update
+</button>
+
+<a href="index.php"
+class="btn btn-secondary">
+Batal
+</a>
+
+<?php else: ?>
+
+<button
+type="submit"
+name="create"
+class="btn btn-primary">
+Simpan
+</button>
+
+<?php endif; ?>
 
 </form>
 
-<hr>
+</div>
 
-<h3>Daftar Siswa</h3>
+</div>
 
-<table>
+<table class="table table-bordered">
 
-<tr>
-    <th>ID</th>
-    <th>NIS</th>
-    <th>Nama</th>
-    <th>Alamat</th>
-    <th>Aksi</th>
-</tr>
-
-<?php foreach($data as $row): ?>
+<thead class="table-dark">
 
 <tr>
+<th>ID</th>
+<th>NIS</th>
+<th>Nama</th>
+<th>Kelas</th>
+<th>Foto</th>
+<th>Aksi</th>
+</tr>
 
-    <td><?= $row['id']; ?></td>
+</thead>
 
-    <td><?= htmlspecialchars($row['nis']); ?></td>
+<tbody>
 
-    <td><?= htmlspecialchars($row['nama']); ?></td>
+<?php while($row = $data->fetch(PDO::FETCH_ASSOC)): ?>
 
-    <td><?= htmlspecialchars($row['alamat']); ?></td>
+<tr>
 
-    <td>
+<td><?= $row['id'] ?></td>
+<td><?= $row['nis'] ?></td>
+<td><?= $row['nama'] ?></td>
+<td><?= $row['kelas'] ?></td>
 
-        <a
-            class="btn-edit"
-            href="?edit=<?= $row['id']; ?>">
-            Edit
-        </a>
+<td>
 
-        |
+<?php if($row['foto_url']): ?>
 
-        <a
-            class="btn-hapus"
-            href="?hapus=<?= $row['id']; ?>"
-            onclick="return confirm('Yakin hapus data?')">
-            Hapus
-        </a>
+<img
+src="<?= $row['foto_url'] ?>"
+width="80">
 
-    </td>
+<?php endif; ?>
+
+</td>
+
+<td>
+
+<a
+href="?edit=<?= $row['id'] ?>"
+class="btn btn-warning btn-sm">
+Edit
+</a>
+
+<a
+href="?delete=<?= $row['id'] ?>"
+class="btn btn-danger btn-sm"
+onclick="return confirm('Hapus data?')">
+Delete
+</a>
+
+</td>
 
 </tr>
 
-<?php endforeach; ?>
+<?php endwhile; ?>
+
+</tbody>
 
 </table>
+
+</div>
 
 </body>
 </html>
