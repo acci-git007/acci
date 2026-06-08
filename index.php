@@ -2,7 +2,7 @@
 // ========================
 // KONFIGURASI RDS
 // ========================
-$host = "dbacci.c83ya4kmsi7u.us-east-1.rds.amazonaws.com";
+$host = "dbtraining.c83ya4kmsi7u.us-east-1.rds.amazonaws.com";
 $dbname = "penjualan_db";
 $user = "admin";
 $pass = "admin2026";
