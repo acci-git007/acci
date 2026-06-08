@@ -1,204 +1,254 @@
 <?php
-// ========================
-// KONFIGURASI RDS
-// ========================
+
+// =====================
+// KONEKSI AMAZON RDS
+// =====================
 $host = "dbtraining.c83ya4kmsi7u.us-east-1.rds.amazonaws.com";
-$dbname = "penjualan_db";
 $user = "admin";
 $pass = "admin2026";
+$db   = "sekolah";
 
-try {
-    $pdo = new PDO(
-        "mysql:host=$host;dbname=$dbname;charset=utf8",
-        $user,
-        $pass,
-        [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
-        ]
-    );
-} catch (PDOException $e) {
-    die("Koneksi gagal: " . $e->getMessage());
+$conn = new mysqli($host, $user, $pass, $db);
+
+if ($conn->connect_error) {
+    die("Koneksi gagal: " . $conn->connect_error);
 }
 
-// ========================
-// CREATE & UPDATE
-// ========================
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+// =====================
+// CREATE
+// =====================
+if(isset($_POST['simpan'])){
+    $nama = $_POST['nama'];
+    $tgl  = $_POST['tanggal_lahir'];
+    $alamat = $_POST['alamat'];
+    $hp = $_POST['no_hp'];
 
-    $nama_produk = $_POST['nama_produk'];
-    $jumlah = $_POST['jumlah'];
-    $harga = $_POST['harga'];
-    $total = $jumlah * $harga;
+    $stmt = $conn->prepare("
+        INSERT INTO pendaftaran
+        (nama, tanggal_lahir, alamat, no_hp)
+        VALUES (?, ?, ?, ?)
+    ");
 
-    if (!empty($_POST['id'])) {
-
-        $stmt = $pdo->prepare("
-            UPDATE penjualan
-            SET nama_produk=?, jumlah=?, harga=?, total=?
-            WHERE id=?
-        ");
-
-        $stmt->execute([
-            $nama_produk,
-            $jumlah,
-            $harga,
-            $total,
-            $_POST['id']
-        ]);
-
-    } else {
-
-        $stmt = $pdo->prepare("
-            INSERT INTO penjualan
-            (nama_produk, jumlah, harga, total)
-            VALUES (?, ?, ?, ?)
-        ");
-
-        $stmt->execute([
-            $nama_produk,
-            $jumlah,
-            $harga,
-            $total
-        ]);
-    }
+    $stmt->bind_param("ssss", $nama, $tgl, $alamat, $hp);
+    $stmt->execute();
 
     header("Location: index.php");
     exit;
 }
 
-// ========================
+// =====================
 // DELETE
-// ========================
-if (isset($_GET['delete'])) {
+// =====================
+if(isset($_GET['hapus'])){
+    $id = (int)$_GET['hapus'];
 
-    $stmt = $pdo->prepare("
-        DELETE FROM penjualan WHERE id=?
+    $stmt = $conn->prepare("
+        DELETE FROM pendaftaran
+        WHERE id=?
     ");
 
-    $stmt->execute([$_GET['delete']]);
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
 
     header("Location: index.php");
     exit;
 }
 
-// ========================
-// EDIT DATA
-// ========================
-$edit = null;
+// =====================
+// UPDATE
+// =====================
+if(isset($_POST['update'])){
+    $id = (int)$_POST['id'];
+    $nama = $_POST['nama'];
+    $tgl = $_POST['tanggal_lahir'];
+    $alamat = $_POST['alamat'];
+    $hp = $_POST['no_hp'];
 
-if (isset($_GET['edit'])) {
-
-    $stmt = $pdo->prepare("
-        SELECT * FROM penjualan WHERE id=?
+    $stmt = $conn->prepare("
+        UPDATE pendaftaran
+        SET nama=?,
+            tanggal_lahir=?,
+            alamat=?,
+            no_hp=?
+        WHERE id=?
     ");
 
-    $stmt->execute([$_GET['edit']]);
+    $stmt->bind_param(
+        "ssssi",
+        $nama,
+        $tgl,
+        $alamat,
+        $hp,
+        $id
+    );
 
-    $edit = $stmt->fetch(PDO::FETCH_ASSOC);
+    $stmt->execute();
+
+    header("Location: index.php");
+    exit;
 }
 
-// ========================
-// READ DATA
-// ========================
-$data = $pdo->query("
-    SELECT * FROM penjualan
-    ORDER BY id DESC
-")->fetchAll(PDO::FETCH_ASSOC);
+// =====================
+// AMBIL DATA EDIT
+// =====================
+$editData = null;
+
+if(isset($_GET['edit'])){
+    $id = (int)$_GET['edit'];
+
+    $stmt = $conn->prepare("
+        SELECT *
+        FROM pendaftaran
+        WHERE id=?
+    ");
+
+    $stmt->bind_param("i", $id);
+    $stmt->execute();
+
+    $result = $stmt->get_result();
+    $editData = $result->fetch_assoc();
+}
 
 ?>
 
 <!DOCTYPE html>
 <html>
 <head>
-    <title>CRUD Penjualan</title>
+    <title>CRUD Pendaftaran Murid Baru</title>
+
     <style>
         body{
             font-family: Arial;
             margin:40px;
         }
 
-        table{
-            border-collapse: collapse;
+        input, textarea{
             width:100%;
+            padding:8px;
+            margin-bottom:10px;
+        }
+
+        button{
+            padding:10px 20px;
+        }
+
+        table{
+            width:100%;
+            border-collapse: collapse;
+            margin-top:20px;
         }
 
         th, td{
             border:1px solid #ddd;
-            padding:10px;
+            padding:8px;
         }
 
         th{
-            background:#f2f2f2;
+            background:#f0f0f0;
         }
 
-        input{
-            padding:8px;
-            margin:5px;
-        }
-
-        button{
-            padding:10px;
+        a{
+            text-decoration:none;
         }
     </style>
 </head>
 <body>
 
-<h2>CRUD Penjualan</h2>
+<h2>Pendaftaran Murid Baru</h2>
 
-<form method="POST">
+<form method="post">
 
-    <input type="hidden"
-           name="id"
-           value="<?= $edit['id'] ?? '' ?>">
+    <?php if($editData){ ?>
 
-    <input type="text"
-           name="nama_produk"
-           placeholder="Nama Produk"
-           required
-           value="<?= $edit['nama_produk'] ?? '' ?>">
+        <input type="hidden"
+               name="id"
+               value="<?= $editData['id'] ?>">
 
-    <input type="number"
-           name="jumlah"
-           placeholder="Jumlah"
-           required
-           value="<?= $edit['jumlah'] ?? '' ?>">
+        <input type="text"
+               name="nama"
+               value="<?= htmlspecialchars($editData['nama']) ?>"
+               placeholder="Nama Murid"
+               required>
 
-    <input type="number"
-           step="0.01"
-           name="harga"
-           placeholder="Harga"
-           required
-           value="<?= $edit['harga'] ?? '' ?>">
+        <input type="date"
+               name="tanggal_lahir"
+               value="<?= $editData['tanggal_lahir'] ?>"
+               required>
 
-    <button type="submit">
-        <?= $edit ? 'Update' : 'Simpan' ?>
-    </button>
+        <textarea name="alamat"
+                  required><?= htmlspecialchars($editData['alamat']) ?></textarea>
+
+        <input type="text"
+               name="no_hp"
+               value="<?= htmlspecialchars($editData['no_hp']) ?>"
+               placeholder="Nomor HP"
+               required>
+
+        <button type="submit" name="update">
+            Update Data
+        </button>
+
+    <?php } else { ?>
+
+        <input type="text"
+               name="nama"
+               placeholder="Nama Murid"
+               required>
+
+        <input type="date"
+               name="tanggal_lahir"
+               required>
+
+        <textarea name="alamat"
+                  placeholder="Alamat"
+                  required></textarea>
+
+        <input type="text"
+               name="no_hp"
+               placeholder="Nomor HP"
+               required>
+
+        <button type="submit" name="simpan">
+            Simpan
+        </button>
+
+    <?php } ?>
 
 </form>
 
 <hr>
 
-<table>
+<h3>Data Pendaftaran</h3>
 
+<table>
     <tr>
         <th>ID</th>
-        <th>Produk</th>
-        <th>Jumlah</th>
-        <th>Harga</th>
-        <th>Total</th>
-        <th>Tanggal</th>
+        <th>Nama</th>
+        <th>Tanggal Lahir</th>
+        <th>Alamat</th>
+        <th>No HP</th>
         <th>Aksi</th>
     </tr>
 
-    <?php foreach($data as $row): ?>
+    <?php
+
+    $data = $conn->query("
+        SELECT *
+        FROM pendaftaran
+        ORDER BY id DESC
+    ");
+
+    while($row = $data->fetch_assoc()){
+
+    ?>
 
     <tr>
         <td><?= $row['id'] ?></td>
-        <td><?= htmlspecialchars($row['nama_produk']) ?></td>
-        <td><?= $row['jumlah'] ?></td>
-        <td><?= number_format($row['harga'],2) ?></td>
-        <td><?= number_format($row['total'],2) ?></td>
-        <td><?= $row['created_at'] ?></td>
+        <td><?= htmlspecialchars($row['nama']) ?></td>
+        <td><?= $row['tanggal_lahir'] ?></td>
+        <td><?= htmlspecialchars($row['alamat']) ?></td>
+        <td><?= htmlspecialchars($row['no_hp']) ?></td>
+
         <td>
             <a href="?edit=<?= $row['id'] ?>">
                 Edit
@@ -206,14 +256,14 @@ $data = $pdo->query("
 
             |
 
-            <a href="?delete=<?= $row['id'] ?>"
-               onclick="return confirm('Hapus data?')">
-               Hapus
+            <a href="?hapus=<?= $row['id'] ?>"
+               onclick="return confirm('Yakin hapus data?')">
+                Hapus
             </a>
         </td>
     </tr>
 
-    <?php endforeach; ?>
+    <?php } ?>
 
 </table>
 
