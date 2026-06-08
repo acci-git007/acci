@@ -1,143 +1,61 @@
 <?php
 
-// =============================
-// KONEKSI AMAZON RDS MYSQL
-// =============================
+// =====================
+// KONEKSI RDS
+// =====================
 $host = "dbtraining.c83ya4kmsi7u.us-east-1.rds.amazonaws.com";
-$port = 3306;
 $user = "admin";
-$pass = "admin2026!";
+$pass = "admin2026";
 $db   = "kelas";
 
-$conn = new mysqli($host, $user, $pass, $db, $port);
+$conn = new mysqli($host, $user, $pass, $db);
 
-if ($conn->connect_error) {
-    die("Koneksi gagal: " . $conn->connect_error);
+if($conn->connect_error){
+    die("Koneksi gagal: ".$conn->connect_error);
 }
 
-// =============================
-// SIMPAN DATA
-// =============================
+// =====================
+// CREATE
+// =====================
 if(isset($_POST['simpan'])){
-
-    $nama = $_POST['nama'];
-    $tanggal_lahir = $_POST['tanggal_lahir'];
-    $alamat = $_POST['alamat'];
-    $no_hp = $_POST['no_hp'];
-    $kelas = $_POST['kelas'];
-    $jurusan = $_POST['jurusan'];
-
     $stmt = $conn->prepare("
-        INSERT INTO pendaftaran
-        (
-            nama,
-            tanggal_lahir,
-            alamat,
-            no_hp,
-            kelas,
-            jurusan
-        )
+        INSERT INTO pendaftaran (nama,tanggal_lahir,alamat,no_hp,kelas,jurusan)
         VALUES (?,?,?,?,?,?)
     ");
 
     $stmt->bind_param(
         "ssssss",
-        $nama,
-        $tanggal_lahir,
-        $alamat,
-        $no_hp,
-        $kelas,
-        $jurusan
+        $_POST['nama'],
+        $_POST['tanggal_lahir'],
+        $_POST['alamat'],
+        $_POST['no_hp'],
+        $_POST['kelas'],
+        $_POST['jurusan']
     );
 
     $stmt->execute();
-
-    header("Location:index.php");
+    header("Location: index.php");
     exit;
 }
 
-// =============================
-// UPDATE DATA
-// =============================
-if(isset($_POST['update'])){
-
-    $id = $_POST['id'];
-
-    $nama = $_POST['nama'];
-    $tanggal_lahir = $_POST['tanggal_lahir'];
-    $alamat = $_POST['alamat'];
-    $no_hp = $_POST['no_hp'];
-    $kelas = $_POST['kelas'];
-    $jurusan = $_POST['jurusan'];
-
-    $stmt = $conn->prepare("
-        UPDATE pendaftaran
-        SET
-            nama=?,
-            tanggal_lahir=?,
-            alamat=?,
-            no_hp=?,
-            kelas=?,
-            jurusan=?
-        WHERE id=?
-    ");
-
-    $stmt->bind_param(
-        "ssssssi",
-        $nama,
-        $tanggal_lahir,
-        $alamat,
-        $no_hp,
-        $kelas,
-        $jurusan,
-        $id
-    );
-
-    $stmt->execute();
-
-    header("Location:index.php");
-    exit;
-}
-
-// =============================
-// HAPUS DATA
-// =============================
+// =====================
+// DELETE
+// =====================
 if(isset($_GET['hapus'])){
-
     $id = (int)$_GET['hapus'];
-
-    $stmt = $conn->prepare("
-        DELETE FROM pendaftaran
-        WHERE id=?
-    ");
-
-    $stmt->bind_param("i",$id);
-    $stmt->execute();
-
-    header("Location:index.php");
+    $conn->query("DELETE FROM pendaftaran WHERE id=$id");
+    header("Location: index.php");
     exit;
 }
 
-// =============================
-// EDIT DATA
-// =============================
+// =====================
+// AMBIL DATA EDIT
+// =====================
 $edit = null;
 
 if(isset($_GET['edit'])){
-
     $id = (int)$_GET['edit'];
-
-    $stmt = $conn->prepare("
-        SELECT *
-        FROM pendaftaran
-        WHERE id=?
-    ");
-
-    $stmt->bind_param("i",$id);
-    $stmt->execute();
-
-    $result = $stmt->get_result();
-    $edit = $result->fetch_assoc();
+    $edit = $conn->query("SELECT * FROM pendaftaran WHERE id=$id")->fetch_assoc();
 }
 
 ?>
@@ -145,215 +63,141 @@ if(isset($_GET['edit'])){
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
-<title>Pendaftaran Murid Baru</title>
-
-<style>
-
-body{
-    font-family: Arial;
-    margin: 30px;
-}
-
-input, textarea, select{
-    width:100%;
-    padding:10px;
-    margin-bottom:10px;
-}
-
-button{
-    padding:10px 20px;
-}
-
-table{
-    width:100%;
-    border-collapse: collapse;
-    margin-top:20px;
-}
-
-th,td{
-    border:1px solid #ddd;
-    padding:8px;
-}
-
-th{
-    background:#f2f2f2;
-}
-
-a{
-    text-decoration:none;
-}
-
-</style>
-
+<title>CRUD Murid</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
-<body>
 
-<h2>Pendaftaran Murid Baru</h2>
+<body class="bg-light">
+
+<div class="container mt-4">
+
+<h3 class="text-center mb-4">Pendaftaran Murid Baru</h3>
+
+<!-- FORM -->
+<div class="card shadow p-3 mb-4">
 
 <form method="POST">
 
-<?php if($edit){ ?>
-<input type="hidden" name="id" value="<?= $edit['id']; ?>">
-<?php } ?>
+<input type="hidden" name="id" value="<?= $edit['id'] ?? '' ?>">
 
-<label>Nama Lengkap</label>
-<input
-    type="text"
-    name="nama"
-    required
-    value="<?= $edit['nama'] ?? ''; ?>"
->
+<div class="row">
 
-<label>Tanggal Lahir</label>
-<input
-    type="date"
-    name="tanggal_lahir"
-    required
-    value="<?= $edit['tanggal_lahir'] ?? ''; ?>"
->
+<div class="col-md-6">
+    <label>Nama</label>
+    <input type="text" name="nama" class="form-control"
+    value="<?= $edit['nama'] ?? '' ?>" required>
+</div>
 
-<label>Alamat</label>
-<textarea
-    name="alamat"
-    required><?= $edit['alamat'] ?? ''; ?></textarea>
+<div class="col-md-6">
+    <label>Tanggal Lahir</label>
+    <input type="date" name="tanggal_lahir" class="form-control"
+    value="<?= $edit['tanggal_lahir'] ?? '' ?>" required>
+</div>
 
-<label>No HP</label>
-<input
-    type="text"
-    name="no_hp"
-    required
-    value="<?= $edit['no_hp'] ?? ''; ?>"
->
+<div class="col-md-12 mt-2">
+    <label>Alamat</label>
+    <textarea name="alamat" class="form-control" required><?= $edit['alamat'] ?? '' ?></textarea>
+</div>
 
-<label>Kelas</label>
-<select name="kelas" required>
-    <option value="">Pilih Kelas</option>
+<div class="col-md-6 mt-2">
+    <label>No HP</label>
+    <input type="text" name="no_hp" class="form-control"
+    value="<?= $edit['no_hp'] ?? '' ?>" required>
+</div>
 
-    <?php
-    $kelasList = ["X","XI","XII"];
+<div class="col-md-3 mt-2">
+    <label>Kelas</label>
+    <select name="kelas" class="form-control" required>
+        <option value="">Pilih</option>
+        <?php foreach(["X","XI","XII"] as $k){ ?>
+        <option value="<?= $k ?>" <?= ($edit['kelas'] ?? '')==$k?'selected':'' ?>>
+            <?= $k ?>
+        </option>
+        <?php } ?>
+    </select>
+</div>
 
-    foreach($kelasList as $k){
+<div class="col-md-3 mt-2">
+    <label>Jurusan</label>
+    <select name="jurusan" class="form-control" required>
+        <option value="">Pilih</option>
+        <?php foreach(["RPL","TKJ","DKV","AKL"] as $j){ ?>
+        <option value="<?= $j ?>" <?= ($edit['jurusan'] ?? '')==$j?'selected':'' ?>>
+            <?= $j ?>
+        </option>
+        <?php } ?>
+    </select>
+</div>
 
-        $selected =
-        (($edit['kelas'] ?? '') == $k)
-        ? "selected"
-        : "";
+</div>
 
-        echo "<option value='$k' $selected>$k</option>";
-    }
-    ?>
-</select>
-
-<label>Jurusan</label>
-<select name="jurusan" required>
-
-    <option value="">Pilih Jurusan</option>
-
-    <?php
-
-    $jurusanList = [
-        "RPL",
-        "TKJ",
-        "DKV",
-        "AKL",
-        "OTKP"
-    ];
-
-    foreach($jurusanList as $j){
-
-        $selected =
-        (($edit['jurusan'] ?? '') == $j)
-        ? "selected"
-        : "";
-
-        echo "<option value='$j' $selected>$j</option>";
-    }
-
-    ?>
-
-</select>
+<div class="mt-3">
 
 <?php if($edit){ ?>
-
-<button type="submit" name="update">
-Update Data
-</button>
-
-<a href="index.php">
-Batal
-</a>
-
+    <button class="btn btn-warning" name="update">Update</button>
+    <a href="index.php" class="btn btn-secondary">Batal</a>
 <?php } else { ?>
-
-<button type="submit" name="simpan">
-Simpan Data
-</button>
-
+    <button class="btn btn-primary" name="simpan">Simpan</button>
 <?php } ?>
+
+</div>
 
 </form>
 
-<hr>
+</div>
 
-<h2>Data Pendaftaran</h2>
+<!-- TABLE -->
+<div class="card shadow p-3">
 
-<table>
+<h5>Data Pendaftaran</h5>
 
+<table class="table table-striped">
+
+<thead class="table-dark">
 <tr>
     <th>ID</th>
     <th>Nama</th>
-    <th>Tanggal Lahir</th>
+    <th>Tanggal</th>
     <th>Kelas</th>
     <th>Jurusan</th>
     <th>No HP</th>
     <th>Aksi</th>
 </tr>
+</thead>
+
+<tbody>
 
 <?php
-
-$data = $conn->query("
-SELECT *
-FROM pendaftaran
-ORDER BY id DESC
-");
+$data = $conn->query("SELECT * FROM pendaftaran ORDER BY id DESC");
 
 while($row = $data->fetch_assoc()){
-
 ?>
 
 <tr>
-
-<td><?= $row['id']; ?></td>
-
-<td><?= htmlspecialchars($row['nama']); ?></td>
-
-<td><?= $row['tanggal_lahir']; ?></td>
-
-<td><?= htmlspecialchars($row['kelas']); ?></td>
-
-<td><?= htmlspecialchars($row['jurusan']); ?></td>
-
-<td><?= htmlspecialchars($row['no_hp']); ?></td>
-
-<td>
-    <a href="?edit=<?= $row['id']; ?>">
-        Edit
-    </a>
-    |
-    <a
-        href="?hapus=<?= $row['id']; ?>"
-        onclick="return confirm('Yakin hapus data?')"
-    >
-        Hapus
-    </a>
-</td>
-
+    <td><?= $row['id'] ?></td>
+    <td><?= htmlspecialchars($row['nama']) ?></td>
+    <td><?= $row['tanggal_lahir'] ?></td>
+    <td><?= $row['kelas'] ?></td>
+    <td><?= $row['jurusan'] ?></td>
+    <td><?= $row['no_hp'] ?></td>
+    <td>
+        <a href="?edit=<?= $row['id'] ?>" class="btn btn-sm btn-warning">Edit</a>
+        <a href="?hapus=<?= $row['id'] ?>" class="btn btn-sm btn-danger"
+           onclick="return confirm('Hapus data?')">
+           Hapus
+        </a>
+    </td>
 </tr>
 
 <?php } ?>
 
+</tbody>
+
 </table>
+
+</div>
+
+</div>
 
 </body>
 </html>
