@@ -1,5 +1,8 @@
 <?php
 
+// =====================
+// KONEKSI RDS
+// =====================
 $conn = mysqli_connect(
     "dbtraining.c83ya4kmsi7u.us-east-1.rds.amazonaws.com",
     "admin",
@@ -7,35 +10,46 @@ $conn = mysqli_connect(
     "db_stok_barang"
 );
 
+// CEK KONEKSI
 if (!$conn) {
-    die("Koneksi gagal: " . mysqli_connect_error());
+    die("❌ Koneksi gagal: " . mysqli_connect_error());
 }
 
-// INSERT
-if(isset($_POST['simpan'])){
+// =====================
+// INSERT DATA
+// =====================
+if (isset($_POST['simpan'])) {
 
-    $nama = $_POST['nama_barang'];
+    $nama_barang = $_POST['nama_barang'];
     $kategori = $_POST['kategori'];
     $stok = $_POST['stok'];
     $harga_beli = $_POST['harga_beli'];
     $harga_jual = $_POST['harga_jual'];
 
-    mysqli_query($conn,"
-        INSERT INTO barang
-        (nama_barang, kategori, stok, harga_beli, harga_jual)
-        VALUES
-        ('$nama','$kategori','$stok','$harga_beli','$harga_jual')
-    ");
+    $sql = "INSERT INTO barang 
+            (nama_barang, kategori, stok, harga_beli, harga_jual)
+            VALUES
+            ('$nama_barang', '$kategori', '$stok', '$harga_beli', '$harga_jual')";
+
+    if (mysqli_query($conn, $sql)) {
+        echo "<script>alert('✅ Data berhasil disimpan');</script>";
+    } else {
+        die("❌ Query error: " . mysqli_error($conn));
+    }
 }
 
-// DELETE
-if(isset($_GET['hapus'])){
+// =====================
+// DELETE DATA
+// =====================
+if (isset($_GET['hapus'])) {
+
     $id = $_GET['hapus'];
 
-    mysqli_query($conn,"
-        DELETE FROM barang
-        WHERE id_barang='$id'
-    ");
+    $sql = "DELETE FROM barang WHERE id_barang='$id'";
+
+    if (!mysqli_query($conn, $sql)) {
+        die("❌ Gagal hapus: " . mysqli_error($conn));
+    }
 }
 
 ?>
@@ -52,13 +66,14 @@ if(isset($_GET['hapus'])){
 
 <div class="container mt-4">
 
-    <h2 class="text-center mb-4">📦 Data Stok Barang</h2>
+    <h2 class="text-center mb-4">📦 CRUD Stok Barang</h2>
 
     <!-- FORM -->
     <div class="card shadow p-3 mb-4">
+
         <form method="POST">
 
-            <div class="row">
+            <div class="row g-2">
 
                 <div class="col-md-3">
                     <input type="text" name="nama_barang" class="form-control" placeholder="Nama Barang" required>
@@ -89,16 +104,18 @@ if(isset($_GET['hapus'])){
             </div>
 
         </form>
+
     </div>
 
     <!-- TABLE -->
     <div class="card shadow p-3">
 
         <table class="table table-striped table-hover">
+
             <thead class="table-dark">
                 <tr>
                     <th>ID</th>
-                    <th>Barang</th>
+                    <th>Nama Barang</th>
                     <th>Kategori</th>
                     <th>Stok</th>
                     <th>Harga Beli</th>
@@ -110,7 +127,11 @@ if(isset($_GET['hapus'])){
             <tbody>
 
             <?php
-            $data = mysqli_query($conn,"SELECT * FROM barang ORDER BY id_barang DESC");
+            $data = mysqli_query($conn, "SELECT * FROM barang ORDER BY id_barang DESC");
+
+            if(!$data){
+                die("❌ Query select error: " . mysqli_error($conn));
+            }
 
             while($row = mysqli_fetch_assoc($data)){
             ?>
@@ -123,7 +144,9 @@ if(isset($_GET['hapus'])){
                     <td>Rp <?= number_format($row['harga_beli']); ?></td>
                     <td>Rp <?= number_format($row['harga_jual']); ?></td>
                     <td>
-                        <a href="?hapus=<?= $row['id_barang']; ?>" class="btn btn-danger btn-sm">
+                        <a href="?hapus=<?= $row['id_barang']; ?>" 
+                           class="btn btn-danger btn-sm"
+                           onclick="return confirm('Hapus data?')">
                             Hapus
                         </a>
                     </td>
@@ -132,6 +155,7 @@ if(isset($_GET['hapus'])){
             <?php } ?>
 
             </tbody>
+
         </table>
 
     </div>
