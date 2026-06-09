@@ -1,97 +1,37 @@
 <?php
 
-/* =========================
-   KONFIGURASI AWS RDS
-   ========================= */
+$conn = mysqli_connect(
+    "dbtraining.c83ya4kmsi7u.us-east-1.rds.amazonaws.com",
+    "admin",
+    "admin2026",
+    "db_penjualan"
+);
 
-$host = "dbtraining.c83ya4kmsi7u.us-east-1.rds.amazonaws.com";
-$user = "admin";
-$pass = "admin2026";
-$db   = "db_sekolah";
-
-$conn = new mysqli($host, $user, $pass, $db);
-
-if ($conn->connect_error) {
-    die("Koneksi gagal: " . $conn->connect_error);
+if (!$conn) {
+    die("Koneksi gagal: " . mysqli_connect_error());
 }
 
-/* =========================
-   CREATE
-   ========================= */
-
+// INSERT
 if(isset($_POST['simpan'])){
 
-    $nis = $_POST['nis'];
-    $nama = $_POST['nama'];
-    $jk = $_POST['jk'];
-    $alamat = $_POST['alamat'];
+    $nama_produk = $_POST['nama_produk'];
+    $jumlah = $_POST['jumlah'];
+    $harga = $_POST['harga'];
+    $total = $jumlah * $harga;
+    $tanggal = $_POST['tanggal'];
 
-    $sql = "INSERT INTO siswa(nis,nama,jenis_kelamin,alamat)
-            VALUES('$nis','$nama','$jk','$alamat')";
-
-    $conn->query($sql);
-
-    header("Location:index.php");
-    exit;
+    mysqli_query($conn,"
+        INSERT INTO penjualan
+        (nama_produk, jumlah, harga, total, tanggal_penjualan)
+        VALUES
+        ('$nama_produk','$jumlah','$harga','$total','$tanggal')
+    ");
 }
 
-/* =========================
-   DELETE
-   ========================= */
-
+// DELETE
 if(isset($_GET['hapus'])){
-
-    $id = (int)$_GET['hapus'];
-
-    $conn->query("DELETE FROM siswa WHERE id=$id");
-
-    header("Location:index.php");
-    exit;
-}
-
-/* =========================
-   UPDATE
-   ========================= */
-
-if(isset($_POST['update'])){
-
-    $id = (int)$_POST['id'];
-    $nis = $_POST['nis'];
-    $nama = $_POST['nama'];
-    $jk = $_POST['jk'];
-    $alamat = $_POST['alamat'];
-
-    $sql = "UPDATE siswa
-            SET
-            nis='$nis',
-            nama='$nama',
-            jenis_kelamin='$jk',
-            alamat='$alamat'
-            WHERE id=$id";
-
-    $conn->query($sql);
-
-    header("Location:index.php");
-    exit;
-}
-
-/* =========================
-   AMBIL DATA EDIT
-   ========================= */
-
-$edit = false;
-$dataEdit = null;
-
-if(isset($_GET['edit'])){
-
-    $id = (int)$_GET['edit'];
-
-    $result = $conn->query("SELECT * FROM siswa WHERE id=$id");
-
-    if($result->num_rows > 0){
-        $dataEdit = $result->fetch_assoc();
-        $edit = true;
-    }
+    $id = $_GET['hapus'];
+    mysqli_query($conn,"DELETE FROM penjualan WHERE id_penjualan='$id'");
 }
 
 ?>
@@ -99,182 +39,93 @@ if(isset($_GET['edit'])){
 <!DOCTYPE html>
 <html>
 <head>
-    <title>CRUD Pendaftaran Siswa</title>
+    <title>CRUD Penjualan</title>
 
-    <style>
-
-        body{
-            font-family:Arial;
-            margin:30px;
-            background:#f5f5f5;
-        }
-
-        .container{
-            background:white;
-            padding:20px;
-            border-radius:10px;
-        }
-
-        input, textarea, select{
-            width:100%;
-            padding:10px;
-            margin-bottom:10px;
-        }
-
-        button{
-            padding:10px 20px;
-            background:#007bff;
-            color:white;
-            border:none;
-            cursor:pointer;
-        }
-
-        table{
-            width:100%;
-            border-collapse:collapse;
-            margin-top:20px;
-        }
-
-        table, th, td{
-            border:1px solid #ccc;
-        }
-
-        th, td{
-            padding:10px;
-            text-align:left;
-        }
-
-        a{
-            text-decoration:none;
-            margin-right:10px;
-        }
-
-    </style>
+    <!-- Bootstrap CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 
 </head>
-<body>
+<body class="bg-light">
 
-<div class="container">
+<div class="container mt-4">
 
-<h2>Pendaftaran Siswa</h2>
+    <h2 class="text-center mb-4">📊 Data Penjualan</h2>
 
-<form method="POST">
+    <!-- FORM -->
+    <div class="card shadow p-3 mb-4">
+        <form method="POST">
 
-<?php if($edit){ ?>
+            <div class="row">
+                <div class="col-md-3">
+                    <input type="text" name="nama_produk" class="form-control" placeholder="Nama Produk" required>
+                </div>
 
-<input type="hidden" name="id" value="<?= $dataEdit['id']; ?>">
+                <div class="col-md-2">
+                    <input type="number" name="jumlah" class="form-control" placeholder="Jumlah" required>
+                </div>
 
-<?php } ?>
+                <div class="col-md-2">
+                    <input type="number" name="harga" class="form-control" placeholder="Harga" required>
+                </div>
 
-<label>NIS</label>
-<input
-type="text"
-name="nis"
-required
-value="<?= $edit ? $dataEdit['nis'] : ''; ?>"
->
+                <div class="col-md-3">
+                    <input type="date" name="tanggal" class="form-control" required>
+                </div>
 
-<label>Nama</label>
-<input
-type="text"
-name="nama"
-required
-value="<?= $edit ? $dataEdit['nama'] : ''; ?>"
->
+                <div class="col-md-2">
+                    <button type="submit" name="simpan" class="btn btn-primary w-100">
+                        Simpan
+                    </button>
+                </div>
+            </div>
 
-<label>Jenis Kelamin</label>
+        </form>
+    </div>
 
-<select name="jk" required>
+    <!-- TABLE -->
+    <div class="card shadow p-3">
 
-<option value="">Pilih</option>
+        <table class="table table-striped table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>ID</th>
+                    <th>Produk</th>
+                    <th>Jumlah</th>
+                    <th>Harga</th>
+                    <th>Total</th>
+                    <th>Tanggal</th>
+                    <th>Aksi</th>
+                </tr>
+            </thead>
 
-<option value="L"
-<?= ($edit && $dataEdit['jenis_kelamin']=='L')?'selected':''; ?>
->
-Laki-laki
-</option>
+            <tbody>
 
-<option value="P"
-<?= ($edit && $dataEdit['jenis_kelamin']=='P')?'selected':''; ?>
->
-Perempuan
-</option>
+            <?php
+            $data = mysqli_query($conn,"SELECT * FROM penjualan ORDER BY id_penjualan DESC");
 
-</select>
+            while($row = mysqli_fetch_assoc($data)){
+            ?>
 
-<label>Alamat</label>
+                <tr>
+                    <td><?= $row['id_penjualan']; ?></td>
+                    <td><?= $row['nama_produk']; ?></td>
+                    <td><?= $row['jumlah']; ?></td>
+                    <td>Rp <?= number_format($row['harga']); ?></td>
+                    <td><b>Rp <?= number_format($row['total']); ?></b></td>
+                    <td><?= $row['tanggal_penjualan']; ?></td>
+                    <td>
+                        <a href="?hapus=<?= $row['id_penjualan']; ?>" class="btn btn-danger btn-sm">
+                            Hapus
+                        </a>
+                    </td>
+                </tr>
 
-<textarea name="alamat"><?= $edit ? $dataEdit['alamat'] : ''; ?></textarea>
+            <?php } ?>
 
-<?php if($edit){ ?>
+            </tbody>
+        </table>
 
-<button type="submit" name="update">
-Update Data
-</button>
-
-<a href="index.php">Batal</a>
-
-<?php } else { ?>
-
-<button type="submit" name="simpan">
-Simpan Data
-</button>
-
-<?php } ?>
-
-</form>
-
-<h2>Data Siswa</h2>
-
-<table>
-
-<tr>
-    <th>ID</th>
-    <th>NIS</th>
-    <th>Nama</th>
-    <th>JK</th>
-    <th>Alamat</th>
-    <th>Aksi</th>
-</tr>
-
-<?php
-
-$result = $conn->query(
-"SELECT * FROM siswa ORDER BY id DESC"
-);
-
-while($row = $result->fetch_assoc()){
-
-?>
-
-<tr>
-
-<td><?= $row['id']; ?></td>
-<td><?= $row['nis']; ?></td>
-<td><?= $row['nama']; ?></td>
-<td><?= $row['jenis_kelamin']; ?></td>
-<td><?= $row['alamat']; ?></td>
-
-<td>
-
-<a href="?edit=<?= $row['id']; ?>">
-Edit
-</a>
-
-<a
-href="?hapus=<?= $row['id']; ?>"
-onclick="return confirm('Yakin hapus data?')"
->
-Hapus
-</a>
-
-</td>
-
-</tr>
-
-<?php } ?>
-
-</table>
+    </div>
 
 </div>
 
