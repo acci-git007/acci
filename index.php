@@ -1,12 +1,13 @@
 <?php
 
-// =====================
-// KONEKSI AMAZON RDS
-// =====================
+/* =========================
+   KONFIGURASI AWS RDS
+   ========================= */
+
 $host = "dbtraining.c83ya4kmsi7u.us-east-1.rds.amazonaws.com";
 $user = "admin";
 $pass = "admin2026";
-$db   = "sekolah";
+$db   = "db_sekolah";
 
 $conn = new mysqli($host, $user, $pass, $db);
 
@@ -14,99 +15,83 @@ if ($conn->connect_error) {
     die("Koneksi gagal: " . $conn->connect_error);
 }
 
-// =====================
-// CREATE
-// =====================
+/* =========================
+   CREATE
+   ========================= */
+
 if(isset($_POST['simpan'])){
+
+    $nis = $_POST['nis'];
     $nama = $_POST['nama'];
-    $tgl  = $_POST['tanggal_lahir'];
+    $jk = $_POST['jk'];
     $alamat = $_POST['alamat'];
-    $hp = $_POST['no_hp'];
 
-    $stmt = $conn->prepare("
-        INSERT INTO pendaftaran
-        (nama, tanggal_lahir, alamat, no_hp)
-        VALUES (?, ?, ?, ?)
-    ");
+    $sql = "INSERT INTO siswa(nis,nama,jenis_kelamin,alamat)
+            VALUES('$nis','$nama','$jk','$alamat')";
 
-    $stmt->bind_param("ssss", $nama, $tgl, $alamat, $hp);
-    $stmt->execute();
+    $conn->query($sql);
 
-    header("Location: index.php");
+    header("Location:index.php");
     exit;
 }
 
-// =====================
-// DELETE
-// =====================
+/* =========================
+   DELETE
+   ========================= */
+
 if(isset($_GET['hapus'])){
+
     $id = (int)$_GET['hapus'];
 
-    $stmt = $conn->prepare("
-        DELETE FROM pendaftaran
-        WHERE id=?
-    ");
+    $conn->query("DELETE FROM siswa WHERE id=$id");
 
-    $stmt->bind_param("i", $id);
-    $stmt->execute();
-
-    header("Location: index.php");
+    header("Location:index.php");
     exit;
 }
 
-// =====================
-// UPDATE
-// =====================
+/* =========================
+   UPDATE
+   ========================= */
+
 if(isset($_POST['update'])){
+
     $id = (int)$_POST['id'];
+    $nis = $_POST['nis'];
     $nama = $_POST['nama'];
-    $tgl = $_POST['tanggal_lahir'];
+    $jk = $_POST['jk'];
     $alamat = $_POST['alamat'];
-    $hp = $_POST['no_hp'];
 
-    $stmt = $conn->prepare("
-        UPDATE pendaftaran
-        SET nama=?,
-            tanggal_lahir=?,
-            alamat=?,
-            no_hp=?
-        WHERE id=?
-    ");
+    $sql = "UPDATE siswa
+            SET
+            nis='$nis',
+            nama='$nama',
+            jenis_kelamin='$jk',
+            alamat='$alamat'
+            WHERE id=$id";
 
-    $stmt->bind_param(
-        "ssssi",
-        $nama,
-        $tgl,
-        $alamat,
-        $hp,
-        $id
-    );
+    $conn->query($sql);
 
-    $stmt->execute();
-
-    header("Location: index.php");
+    header("Location:index.php");
     exit;
 }
 
-// =====================
-// AMBIL DATA EDIT
-// =====================
-$editData = null;
+/* =========================
+   AMBIL DATA EDIT
+   ========================= */
+
+$edit = false;
+$dataEdit = null;
 
 if(isset($_GET['edit'])){
+
     $id = (int)$_GET['edit'];
 
-    $stmt = $conn->prepare("
-        SELECT *
-        FROM pendaftaran
-        WHERE id=?
-    ");
+    $result = $conn->query("SELECT * FROM siswa WHERE id=$id");
 
-    $stmt->bind_param("i", $id);
-    $stmt->execute();
-
-    $result = $stmt->get_result();
-    $editData = $result->fetch_assoc();
+    if($result->num_rows > 0){
+        $dataEdit = $result->fetch_assoc();
+        $edit = true;
+    }
 }
 
 ?>
@@ -114,158 +99,184 @@ if(isset($_GET['edit'])){
 <!DOCTYPE html>
 <html>
 <head>
-    <title>CRUD Pendaftaran Murid Baru</title>
+    <title>CRUD Pendaftaran Siswa</title>
 
     <style>
+
         body{
-            font-family: Arial;
-            margin:40px;
+            font-family:Arial;
+            margin:30px;
+            background:#f5f5f5;
         }
 
-        input, textarea{
+        .container{
+            background:white;
+            padding:20px;
+            border-radius:10px;
+        }
+
+        input, textarea, select{
             width:100%;
-            padding:8px;
+            padding:10px;
             margin-bottom:10px;
         }
 
         button{
             padding:10px 20px;
+            background:#007bff;
+            color:white;
+            border:none;
+            cursor:pointer;
         }
 
         table{
             width:100%;
-            border-collapse: collapse;
+            border-collapse:collapse;
             margin-top:20px;
         }
 
-        th, td{
-            border:1px solid #ddd;
-            padding:8px;
+        table, th, td{
+            border:1px solid #ccc;
         }
 
-        th{
-            background:#f0f0f0;
+        th, td{
+            padding:10px;
+            text-align:left;
         }
 
         a{
             text-decoration:none;
+            margin-right:10px;
         }
+
     </style>
+
 </head>
 <body>
 
-<h2>Pendaftaran Murid Baru</h2>
+<div class="container">
 
-<form method="post">
+<h2>Pendaftaran Siswa</h2>
 
-    <?php if($editData){ ?>
+<form method="POST">
 
-        <input type="hidden"
-               name="id"
-               value="<?= $editData['id'] ?>">
+<?php if($edit){ ?>
 
-        <input type="text"
-               name="nama"
-               value="<?= htmlspecialchars($editData['nama']) ?>"
-               placeholder="Nama Murid"
-               required>
+<input type="hidden" name="id" value="<?= $dataEdit['id']; ?>">
 
-        <input type="date"
-               name="tanggal_lahir"
-               value="<?= $editData['tanggal_lahir'] ?>"
-               required>
+<?php } ?>
 
-        <textarea name="alamat"
-                  required><?= htmlspecialchars($editData['alamat']) ?></textarea>
+<label>NIS</label>
+<input
+type="text"
+name="nis"
+required
+value="<?= $edit ? $dataEdit['nis'] : ''; ?>"
+>
 
-        <input type="text"
-               name="no_hp"
-               value="<?= htmlspecialchars($editData['no_hp']) ?>"
-               placeholder="Nomor HP"
-               required>
+<label>Nama</label>
+<input
+type="text"
+name="nama"
+required
+value="<?= $edit ? $dataEdit['nama'] : ''; ?>"
+>
 
-        <button type="submit" name="update">
-            Update Data
-        </button>
+<label>Jenis Kelamin</label>
 
-    <?php } else { ?>
+<select name="jk" required>
 
-        <input type="text"
-               name="nama"
-               placeholder="Nama Murid"
-               required>
+<option value="">Pilih</option>
 
-        <input type="date"
-               name="tanggal_lahir"
-               required>
+<option value="L"
+<?= ($edit && $dataEdit['jenis_kelamin']=='L')?'selected':''; ?>
+>
+Laki-laki
+</option>
 
-        <textarea name="alamat"
-                  placeholder="Alamat"
-                  required></textarea>
+<option value="P"
+<?= ($edit && $dataEdit['jenis_kelamin']=='P')?'selected':''; ?>
+>
+Perempuan
+</option>
 
-        <input type="text"
-               name="no_hp"
-               placeholder="Nomor HP"
-               required>
+</select>
 
-        <button type="submit" name="simpan">
-            Simpan
-        </button>
+<label>Alamat</label>
 
-    <?php } ?>
+<textarea name="alamat"><?= $edit ? $dataEdit['alamat'] : ''; ?></textarea>
+
+<?php if($edit){ ?>
+
+<button type="submit" name="update">
+Update Data
+</button>
+
+<a href="index.php">Batal</a>
+
+<?php } else { ?>
+
+<button type="submit" name="simpan">
+Simpan Data
+</button>
+
+<?php } ?>
 
 </form>
 
-<hr>
-
-<h3>Data Pendaftaran</h3>
+<h2>Data Siswa</h2>
 
 <table>
-    <tr>
-        <th>ID</th>
-        <th>Nama</th>
-        <th>Tanggal Lahir</th>
-        <th>Alamat</th>
-        <th>No HP</th>
-        <th>Aksi</th>
-    </tr>
 
-    <?php
+<tr>
+    <th>ID</th>
+    <th>NIS</th>
+    <th>Nama</th>
+    <th>JK</th>
+    <th>Alamat</th>
+    <th>Aksi</th>
+</tr>
 
-    $data = $conn->query("
-        SELECT *
-        FROM pendaftaran
-        ORDER BY id DESC
-    ");
+<?php
 
-    while($row = $data->fetch_assoc()){
+$result = $conn->query(
+"SELECT * FROM siswa ORDER BY id DESC"
+);
 
-    ?>
+while($row = $result->fetch_assoc()){
 
-    <tr>
-        <td><?= $row['id'] ?></td>
-        <td><?= htmlspecialchars($row['nama']) ?></td>
-        <td><?= $row['tanggal_lahir'] ?></td>
-        <td><?= htmlspecialchars($row['alamat']) ?></td>
-        <td><?= htmlspecialchars($row['no_hp']) ?></td>
+?>
 
-        <td>
-            <a href="?edit=<?= $row['id'] ?>">
-                Edit
-            </a>
+<tr>
 
-            |
+<td><?= $row['id']; ?></td>
+<td><?= $row['nis']; ?></td>
+<td><?= $row['nama']; ?></td>
+<td><?= $row['jenis_kelamin']; ?></td>
+<td><?= $row['alamat']; ?></td>
 
-            <a href="?hapus=<?= $row['id'] ?>"
-               onclick="return confirm('Yakin hapus data?')">
-                Hapus
-            </a>
-        </td>
-    </tr>
+<td>
 
-    <?php } ?>
+<a href="?edit=<?= $row['id']; ?>">
+Edit
+</a>
+
+<a
+href="?hapus=<?= $row['id']; ?>"
+onclick="return confirm('Yakin hapus data?')"
+>
+Hapus
+</a>
+
+</td>
+
+</tr>
+
+<?php } ?>
 
 </table>
+
+</div>
 
 </body>
 </html>
