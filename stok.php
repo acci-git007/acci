@@ -10,9 +10,9 @@ $conn = mysqli_connect(
     "db_stok_barang"
 );
 
-// CEK KONEKSI
+// CEK KONEKSI (WAJIB)
 if (!$conn) {
-    die("❌ Koneksi gagal: " . mysqli_connect_error());
+    die("❌ KONEKSI GAGAL: " . mysqli_connect_error());
 }
 
 // =====================
@@ -29,12 +29,12 @@ if (isset($_POST['simpan'])) {
     $sql = "INSERT INTO barang 
             (nama_barang, kategori, stok, harga_beli, harga_jual)
             VALUES
-            ('$nama_barang', '$kategori', '$stok', '$harga_beli', '$harga_jual')";
+            ('$nama_barang','$kategori','$stok','$harga_beli','$harga_jual')";
 
     if (mysqli_query($conn, $sql)) {
         echo "<script>alert('✅ Data berhasil disimpan');</script>";
     } else {
-        die("❌ Query error: " . mysqli_error($conn));
+        die("❌ ERROR INSERT: " . mysqli_error($conn));
     }
 }
 
@@ -48,7 +48,7 @@ if (isset($_GET['hapus'])) {
     $sql = "DELETE FROM barang WHERE id_barang='$id'";
 
     if (!mysqli_query($conn, $sql)) {
-        die("❌ Gagal hapus: " . mysqli_error($conn));
+        die("❌ ERROR DELETE: " . mysqli_error($conn));
     }
 }
 
@@ -66,7 +66,7 @@ if (isset($_GET['hapus'])) {
 
 <div class="container mt-4">
 
-    <h2 class="text-center mb-4">📦 CRUD Stok Barang</h2>
+    <h2 class="text-center mb-4">📦 STOK BARANG (RDS AWS)</h2>
 
     <!-- FORM -->
     <div class="card shadow p-3 mb-4">
@@ -130,7 +130,7 @@ if (isset($_GET['hapus'])) {
             $data = mysqli_query($conn, "SELECT * FROM barang ORDER BY id_barang DESC");
 
             if(!$data){
-                die("❌ Query select error: " . mysqli_error($conn));
+                die("❌ ERROR SELECT: " . mysqli_error($conn));
             }
 
             while($row = mysqli_fetch_assoc($data)){
