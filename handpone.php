@@ -1,9 +1,8 @@
 <?php
-
-$rds_endpoint = "YOUR_RDS_ENDPOINT";
-$username = "admin";
-$password = "PASSWORD_RDS";
-$database = "db_motor";
+$rds_endpoint = "dbpenjuanceo.c83ya4kmsi7u.us-east-1.rds.amazonaws.com";
+$username = "latihan";
+$password = "latihan2026";
+$database = "db_handphone";
 
 $conn = new mysqli(
     $rds_endpoint,
@@ -21,13 +20,13 @@ if(isset($_POST['tambah'])){
 
     $merk  = $_POST['merk'];
     $tipe  = $_POST['tipe'];
-    $warna = $_POST['warna'];
+    $ram   = $_POST['ram'];
     $harga = $_POST['harga'];
 
-    $sql = "INSERT INTO motor
-            (merk, tipe, warna, harga)
+    $sql = "INSERT INTO handphone
+            (merk, tipe, ram, harga)
             VALUES
-            ('$merk','$tipe','$warna','$harga')";
+            ('$merk','$tipe','$ram','$harga')";
 
     $conn->query($sql);
 }
@@ -37,7 +36,7 @@ if(isset($_GET['hapus'])){
 
     $id = $_GET['hapus'];
 
-    $conn->query("DELETE FROM motor WHERE id='$id'");
+    $conn->query("DELETE FROM handphone WHERE id='$id'");
 }
 
 /* UPDATE */
@@ -46,15 +45,15 @@ if(isset($_POST['update'])){
     $id    = $_POST['id'];
     $merk  = $_POST['merk'];
     $tipe  = $_POST['tipe'];
-    $warna = $_POST['warna'];
+    $ram   = $_POST['ram'];
     $harga = $_POST['harga'];
 
     $conn->query("
-        UPDATE motor
+        UPDATE handphone
         SET
         merk='$merk',
         tipe='$tipe',
-        warna='$warna',
+        ram='$ram',
         harga='$harga'
         WHERE id='$id'
     ");
@@ -67,23 +66,23 @@ if(isset($_GET['edit'])){
     $id = $_GET['edit'];
 
     $result = $conn->query(
-        "SELECT * FROM motor WHERE id='$id'"
+        "SELECT * FROM handphone WHERE id='$id'"
     );
 
     $edit = $result->fetch_assoc();
 }
 
-$data = $conn->query("SELECT * FROM motor");
+$data = $conn->query("SELECT * FROM handphone");
 ?>
 
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Penjualan Motor AWS RDS</title>
+    <title>Penjualan Handphone AWS RDS</title>
 </head>
 <body>
 
-<h2>CRUD Penjualan Motor</h2>
+<h2>CRUD Penjualan Handphone</h2>
 
 <form method="POST">
 
@@ -114,11 +113,11 @@ required>
 </tr>
 
 <tr>
-<td>Warna</td>
+<td>RAM</td>
 <td>
 <input type="text"
-name="warna"
-value="<?= $edit['warna'] ?? '' ?>"
+name="ram"
+value="<?= $edit['ram'] ?? '' ?>"
 required>
 </td>
 </tr>
@@ -142,7 +141,7 @@ required>
 Update
 </button>
 
-<a href="motor.php">
+<a href="handphone.php">
 Batal
 </a>
 
@@ -169,7 +168,7 @@ Simpan
 <th>ID</th>
 <th>Merk</th>
 <th>Tipe</th>
-<th>Warna</th>
+<th>RAM</th>
 <th>Harga</th>
 <th>Aksi</th>
 </tr>
@@ -181,7 +180,7 @@ Simpan
 <td><?= $row['id'] ?></td>
 <td><?= $row['merk'] ?></td>
 <td><?= $row['tipe'] ?></td>
-<td><?= $row['warna'] ?></td>
+<td><?= $row['ram'] ?></td>
 <td>Rp <?= number_format($row['harga']) ?></td>
 
 <td>
