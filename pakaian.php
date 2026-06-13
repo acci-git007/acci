@@ -7,126 +7,158 @@ $db   = "db_pakaian";
 $conn = new mysqli($host, $user, $pass, $db);
 
 if ($conn->connect_error) {
-    die("Koneksi Gagal : " . $conn->connect_error);
+    die("Koneksi gagal : " . $conn->connect_error);
 }
 
-// SIMPAN DATA
+// Simpan Data
 if(isset($_POST['simpan'])){
-    $nama_pakaian = $_POST['nama_pakaian'];
+    $nama = $_POST['nama_pakaian'];
     $ukuran = $_POST['ukuran'];
     $harga = $_POST['harga'];
     $stok = $_POST['stok'];
 
-    $sql = "INSERT INTO pakaian
-            (nama_pakaian, ukuran, harga, stok)
-            VALUES
-            ('$nama_pakaian','$ukuran','$harga','$stok')";
-
-    $conn->query($sql);
+    $conn->query("INSERT INTO pakaian
+    (nama_pakaian, ukuran, harga, stok)
+    VALUES
+    ('$nama','$ukuran','$harga','$stok')");
 
     header("Location: pakaian.php");
-    exit;
 }
 
-// HAPUS DATA
+// Hapus Data
 if(isset($_GET['hapus'])){
     $id = $_GET['hapus'];
 
     $conn->query("DELETE FROM pakaian WHERE id='$id'");
 
     header("Location: pakaian.php");
-    exit;
-}
-
-// AMBIL DATA EDIT
-$edit = null;
-
-if(isset($_GET['edit'])){
-    $id = $_GET['edit'];
-
-    $result = $conn->query(
-        "SELECT * FROM pakaian WHERE id='$id'"
-    );
-
-    $edit = $result->fetch_assoc();
-}
-
-// UPDATE DATA
-if(isset($_POST['update'])){
-    $id = $_POST['id'];
-    $nama_pakaian = $_POST['nama_pakaian'];
-    $ukuran = $_POST['ukuran'];
-    $harga = $_POST['harga'];
-    $stok = $_POST['stok'];
-
-    $sql = "UPDATE pakaian SET
-            nama_pakaian='$nama_pakaian',
-            ukuran='$ukuran',
-            harga='$harga',
-            stok='$stok'
-            WHERE id='$id'";
-
-    $conn->query($sql);
-
-    header("Location: pakaian.php");
-    exit;
 }
 ?>
 
 <!DOCTYPE html>
 <html>
 <head>
-    <title>CRUD Penjualan Pakaian</title>
+<title>Sistem Penjualan Pakaian</title>
+
+<style>
+body{
+    font-family: Arial, sans-serif;
+    background:#f4f6f9;
+    margin:0;
+    padding:0;
+}
+
+.header{
+    background:#2c3e50;
+    color:white;
+    padding:20px;
+    text-align:center;
+}
+
+.container{
+    width:90%;
+    margin:auto;
+    margin-top:20px;
+}
+
+.card{
+    background:white;
+    padding:20px;
+    border-radius:10px;
+    box-shadow:0 2px 10px rgba(0,0,0,0.1);
+    margin-bottom:20px;
+}
+
+input, select{
+    width:100%;
+    padding:10px;
+    margin-top:5px;
+    margin-bottom:15px;
+}
+
+button{
+    background:#27ae60;
+    color:white;
+    border:none;
+    padding:10px 20px;
+    cursor:pointer;
+}
+
+button:hover{
+    background:#219150;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+}
+
+table th{
+    background:#34495e;
+    color:white;
+    padding:10px;
+}
+
+table td{
+    padding:10px;
+    border:1px solid #ddd;
+}
+
+.hapus{
+    background:red;
+    color:white;
+    padding:5px 10px;
+    text-decoration:none;
+    border-radius:5px;
+}
+</style>
+
 </head>
 <body>
 
-<h2>Data Penjualan Pakaian</h2>
+<div class="header">
+    <h1>SISTEM PENJUALAN PAKAIAN</h1>
+</div>
+
+<div class="container">
+
+<div class="card">
+
+<h3>Input Data Pakaian</h3>
 
 <form method="POST">
 
-<input type="hidden" name="id"
-value="<?php echo $edit['id'] ?? ''; ?>">
+<label>Nama Pakaian</label>
+<input type="text" name="nama_pakaian" required>
 
-<label>Nama Pakaian</label><br>
-<input type="text" name="nama_pakaian"
-value="<?php echo $edit['nama_pakaian'] ?? ''; ?>" required>
-<br><br>
-
-<label>Ukuran</label><br>
-<select name="ukuran" required>
-    <option value="">Pilih Ukuran</option>
-    <option value="S">S</option>
-    <option value="M">M</option>
-    <option value="L">L</option>
-    <option value="XL">XL</option>
+<label>Ukuran</label>
+<select name="ukuran">
+    <option>S</option>
+    <option>M</option>
+    <option>L</option>
+    <option>XL</option>
 </select>
-<br><br>
 
-<label>Harga</label><br>
-<input type="number" name="harga"
-value="<?php echo $edit['harga'] ?? ''; ?>" required>
-<br><br>
+<label>Harga</label>
+<input type="number" name="harga" required>
 
-<label>Stok</label><br>
-<input type="number" name="stok"
-value="<?php echo $edit['stok'] ?? ''; ?>" required>
-<br><br>
+<label>Stok</label>
+<input type="number" name="stok" required>
 
-<?php if($edit){ ?>
-    <button type="submit" name="update">
-        Update Data
-    </button>
-<?php } else { ?>
-    <button type="submit" name="simpan">
-        Simpan Data
-    </button>
-<?php } ?>
+<button type="submit" name="simpan">
+    Simpan Data
+</button>
 
 </form>
 
-<hr>
+</div>
 
-<table border="1" cellpadding="10">
+<div class="card">
+
+<h3>Data Pakaian</h3>
+
+<table>
+
 <tr>
     <th>ID</th>
     <th>Nama Pakaian</th>
@@ -137,35 +169,37 @@ value="<?php echo $edit['stok'] ?? ''; ?>" required>
 </tr>
 
 <?php
-
 $data = $conn->query(
-    "SELECT * FROM pakaian ORDER BY id DESC"
+"SELECT * FROM pakaian ORDER BY id DESC"
 );
 
 while($row = $data->fetch_assoc()){
 ?>
 
 <tr>
-    <td><?php echo $row['id']; ?></td>
-    <td><?php echo $row['nama_pakaian']; ?></td>
-    <td><?php echo $row['ukuran']; ?></td>
-    <td><?php echo $row['harga']; ?></td>
-    <td><?php echo $row['stok']; ?></td>
-    <td>
-        <a href="?edit=<?php echo $row['id']; ?>">
-            Edit
-        </a>
-        |
-        <a href="?hapus=<?php echo $row['id']; ?>"
-        onclick="return confirm('Yakin hapus data?')">
-            Hapus
-        </a>
-    </td>
+<td><?php echo $row['id']; ?></td>
+<td><?php echo $row['nama_pakaian']; ?></td>
+<td><?php echo $row['ukuran']; ?></td>
+<td>Rp <?php echo number_format($row['harga']); ?></td>
+<td><?php echo $row['stok']; ?></td>
+
+<td>
+<a class="hapus"
+href="?hapus=<?php echo $row['id']; ?>"
+onclick="return confirm('Hapus data?')">
+Hapus
+</a>
+</td>
+
 </tr>
 
 <?php } ?>
 
 </table>
+
+</div>
+
+</div>
 
 </body>
 </html>
