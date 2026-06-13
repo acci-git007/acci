@@ -1,114 +1,58 @@
 <?php
+$conn = new mysqli(
+    "penjualan-db.c83ya4kmsi7u.us-east-1.rds.amazonaws.com",
+    "admin",
+    "admin2026",
+    "db_motor"
+);
 
-// Koneksi RDS MySQL
-$host = "penjualan-db.c83ya4kmsi7u.us-east-1.rds.amazonaws.com";
-$user = "admin";
-$password = "admin2026";
-$database = "db_penjualan";
+if(isset($_POST['simpan'])){
+    $nama = $_POST['nama_motor'];
+    $merk = $_POST['merk'];
+    $harga = $_POST['harga'];
+    $stok = $_POST['stok'];
 
-$conn = new mysqli($host, $user, $password, $database);
-
-if ($conn->connect_error) {
-    die("Koneksi gagal: " . $conn->connect_error);
+    $conn->query("INSERT INTO motor(nama_motor,merk,harga,stok)
+                  VALUES('$nama','$merk','$harga','$stok')");
 }
 
-$aksi = $_GET['aksi'] ?? '';
-
-switch ($aksi) {
-
-    // CREATE
-    case 'create':
-
-        $nama_motor = $_POST['nama_motor'];
-        $merk = $_POST['merk'];
-        $harga = $_POST['harga'];
-        $jumlah = $_POST['jumlah'];
-        $tanggal = $_POST['tanggal_penjualan'];
-
-        $sql = "INSERT INTO penjualan_motor
-        (nama_motor, merk, harga, jumlah, tanggal_penjualan)
-        VALUES
-        ('$nama_motor','$merk','$harga','$jumlah','$tanggal')";
-
-        if ($conn->query($sql)) {
-            echo "Data berhasil ditambahkan";
-        } else {
-            echo $conn->error;
-        }
-
-        break;
-
-    // READ
-    case 'read':
-
-        $result = $conn->query("SELECT * FROM penjualan_motor");
-
-        $data = [];
-
-        while ($row = $result->fetch_assoc()) {
-            $data[] = $row;
-        }
-
-        header('Content-Type: application/json');
-        echo json_encode($data, JSON_PRETTY_PRINT);
-
-        break;
-
-    // UPDATE
-    case 'update':
-
-        $id = $_POST['id'];
-        $nama_motor = $_POST['nama_motor'];
-        $merk = $_POST['merk'];
-        $harga = $_POST['harga'];
-        $jumlah = $_POST['jumlah'];
-
-        $sql = "UPDATE penjualan_motor SET
-                nama_motor='$nama_motor',
-                merk='$merk',
-                harga='$harga',
-                jumlah='$jumlah'
-                WHERE id='$id'";
-
-        if ($conn->query($sql)) {
-            echo "Data berhasil diupdate";
-        } else {
-            echo $conn->error;
-        }
-
-        break;
-
-    // DELETE
-    case 'delete':
-
-        $id = $_GET['id'];
-
-        $sql = "DELETE FROM penjualan_motor WHERE id='$id'";
-
-        if ($conn->query($sql)) {
-            echo "Data berhasil dihapus";
-        } else {
-            echo $conn->error;
-        }
-
-        break;
-
-    default:
-
-        echo "
-        <h2>CRUD Penjualan Motor</h2>
-
-        <p>API yang tersedia:</p>
-
-        <ul>
-            <li>?aksi=create</li>
-            <li>?aksi=read</li>
-            <li>?aksi=update</li>
-            <li>?aksi=delete&id=1</li>
-        </ul>
-        ";
+if(isset($_GET['hapus'])){
+    $id=$_GET['hapus'];
+    $conn->query("DELETE FROM motor WHERE id=$id");
 }
-
-$conn->close();
-
 ?>
+
+<form method="POST">
+Nama Motor <input type="text" name="nama_motor"><br>
+Merk <input type="text" name="merk"><br>
+Harga <input type="number" name="harga"><br>
+Stok <input type="number" name="stok"><br>
+<button name="simpan">Simpan</button>
+</form>
+
+<hr>
+
+<table border="1">
+<tr>
+<th>ID</th>
+<th>Motor</th>
+<th>Merk</th>
+<th>Harga</th>
+<th>Stok</th>
+<th>Aksi</th>
+</tr>
+
+<?php
+$data=$conn->query("SELECT * FROM motor");
+while($row=$data->fetch_assoc()){
+echo "<tr>
+<td>{$row['id']}</td>
+<td>{$row['nama_motor']}</td>
+<td>{$row['merk']}</td>
+<td>{$row['harga']}</td>
+<td>{$row['stok']}</td>
+<td><a href='?hapus={$row['id']}'>Hapus</a></td>
+</tr>";
+}
+?>
+</table>
