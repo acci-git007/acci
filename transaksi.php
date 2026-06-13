@@ -1,89 +1,19 @@
 <?php
 $conn = new mysqli(
-    "<?php
-$conn = new mysqli(
     "your-rds-endpoint.us-east-1.rds.amazonaws.com",
-    "admin",
-    "admin2026",
-    "dbpenjualan"
-);
-
-if(isset($_POST['simpan'])){
-    $kode=$_POST['kode'];
-    $pelanggan=$_POST['pelanggan'];
-    $total=$_POST['total'];
-
-    $conn->query("INSERT INTO transaksi
-    (kode_transaksi,pelanggan,total_bayar)
-    VALUES('$kode','$pelanggan','$total')");
-}
-
-if(isset($_GET['hapus'])){
-    $id=$_GET['hapus'];
-    $conn->query("DELETE FROM transaksi WHERE id='$id'");
-}
-
-$data=$conn->query("SELECT * FROM transaksi");
-?>
-
-<!DOCTYPE html>
-<html>
-<head>
-<title>CRUD Transaksi</title>
-</head>
-<body>
-
-<h2>Data Transaksi</h2>
-
-<form method="post">
-Kode:
-<input type="text" name="kode" required><br><br>
-
-Pelanggan:
-<input type="text" name="pelanggan" required><br><br>
-
-Total:
-<input type="number" name="total" required><br><br>
-
-<button name="simpan">Simpan</button>
-</form>
-
-<hr>
-
-<table border="1">
-<tr>
-<th>ID</th>
-<th>Kode</th>
-<th>Pelanggan</th>
-<th>Total</th>
-<th>Aksi</th>
-</tr>
-
-<?php while($r=$data->fetch_assoc()){ ?>
-<tr>
-<td><?= $r['id']; ?></td>
-<td><?= $r['kode_transaksi']; ?></td>
-<td><?= $r['pelanggan']; ?></td>
-<td><?= $r['total_bayar']; ?></td>
-<td>
-<a href="?hapus=<?= $r['id']; ?>">Hapus</a>
-</td>
-</tr>
-<?php } ?>
-
-</table>
-
-</body>
-</html>",
     "admin",
     "password",
     "dbpenjualan"
 );
 
+if ($conn->connect_error) {
+    die("Koneksi gagal: " . $conn->connect_error);
+}
+
 if(isset($_POST['simpan'])){
-    $kode=$_POST['kode'];
-    $pelanggan=$_POST['pelanggan'];
-    $total=$_POST['total'];
+    $kode = $_POST['kode'];
+    $pelanggan = $_POST['pelanggan'];
+    $total = $_POST['total'];
 
     $conn->query("INSERT INTO transaksi
     (kode_transaksi,pelanggan,total_bayar)
@@ -91,59 +21,134 @@ if(isset($_POST['simpan'])){
 }
 
 if(isset($_GET['hapus'])){
-    $id=$_GET['hapus'];
+    $id = $_GET['hapus'];
     $conn->query("DELETE FROM transaksi WHERE id='$id'");
 }
 
-$data=$conn->query("SELECT * FROM transaksi");
+$data = $conn->query("SELECT * FROM transaksi ORDER BY id DESC");
 ?>
 
 <!DOCTYPE html>
 <html>
 <head>
-<title>CRUD Transaksi</title>
+    <title>Aplikasi Transaksi</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <style>
+        body{
+            background:#f4f6f9;
+        }
+        .card{
+            border:none;
+            border-radius:15px;
+        }
+        .header{
+            background:#0d6efd;
+            color:white;
+            padding:20px;
+            border-radius:15px;
+            margin-bottom:20px;
+        }
+    </style>
 </head>
+
 <body>
 
-<h2>Data Transaksi</h2>
+<div class="container mt-5">
 
-<form method="post">
-Kode:
-<input type="text" name="kode" required><br><br>
+    <div class="header">
+        <h2>💰 Aplikasi Data Transaksi</h2>
+        <p>CRUD Transaksi AWS RDS MySQL</p>
+    </div>
 
-Pelanggan:
-<input type="text" name="pelanggan" required><br><br>
+    <div class="row">
 
-Total:
-<input type="number" name="total" required><br><br>
+        <div class="col-md-4">
 
-<button name="simpan">Simpan</button>
-</form>
+            <div class="card shadow p-4">
 
-<hr>
+                <h4>Tambah Transaksi</h4>
 
-<table border="1">
-<tr>
-<th>ID</th>
-<th>Kode</th>
-<th>Pelanggan</th>
-<th>Total</th>
-<th>Aksi</th>
-</tr>
+                <form method="POST">
 
-<?php while($r=$data->fetch_assoc()){ ?>
-<tr>
-<td><?= $r['id']; ?></td>
-<td><?= $r['kode_transaksi']; ?></td>
-<td><?= $r['pelanggan']; ?></td>
-<td><?= $r['total_bayar']; ?></td>
-<td>
-<a href="?hapus=<?= $r['id']; ?>">Hapus</a>
-</td>
-</tr>
-<?php } ?>
+                    <div class="mb-3">
+                        <label>Kode Transaksi</label>
+                        <input type="text" name="kode" class="form-control" required>
+                    </div>
 
-</table>
+                    <div class="mb-3">
+                        <label>Nama Pelanggan</label>
+                        <input type="text" name="pelanggan" class="form-control" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label>Total Bayar</label>
+                        <input type="number" name="total" class="form-control" required>
+                    </div>
+
+                    <button type="submit" name="simpan" class="btn btn-primary w-100">
+                        Simpan Data
+                    </button>
+
+                </form>
+
+            </div>
+
+        </div>
+
+        <div class="col-md-8">
+
+            <div class="card shadow p-4">
+
+                <h4>Data Transaksi</h4>
+
+                <table class="table table-bordered table-striped mt-3">
+
+                    <thead class="table-primary">
+                        <tr>
+                            <th>ID</th>
+                            <th>Kode</th>
+                            <th>Pelanggan</th>
+                            <th>Total Bayar</th>
+                            <th>Tanggal</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+
+                    <?php while($row = $data->fetch_assoc()){ ?>
+
+                        <tr>
+                            <td><?= $row['id']; ?></td>
+                            <td><?= $row['kode_transaksi']; ?></td>
+                            <td><?= $row['pelanggan']; ?></td>
+                            <td>Rp <?= number_format($row['total_bayar'],0,',','.'); ?></td>
+                            <td><?= $row['tanggal']; ?></td>
+
+                            <td>
+                                <a href="?hapus=<?= $row['id']; ?>"
+                                   class="btn btn-danger btn-sm"
+                                   onclick="return confirm('Hapus data?')">
+                                   Hapus
+                                </a>
+                            </td>
+                        </tr>
+
+                    <?php } ?>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
 
 </body>
 </html>
