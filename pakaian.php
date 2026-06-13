@@ -1,69 +1,47 @@
 <?php
+$host = "penjualan-db.c83ya4kmsi7u.us-east-1.rds.amazonaws.com";
+$user = "admin";
+$pass = "admin2026";
+$db   = "db_pakaian";
 
-$rds_endpoint = "YOUR_RDS_ENDPOINT";
-$username = "admin";
-$password = "PASSWORD_RDS";
-$database = "db_pakaian";
-
-$conn = new mysqli(
-    $rds_endpoint,
-    $username,
-    $password,
-    $database
-);
+$conn = new mysqli($host, $user, $pass, $db);
 
 if ($conn->connect_error) {
-    die("Koneksi gagal: " . $conn->connect_error);
+    die("Koneksi Gagal : " . $conn->connect_error);
 }
 
-/* CREATE */
-if(isset($_POST['tambah'])){
-
-    $nama_barang = $_POST['nama_barang'];
-    $ukuran      = $_POST['ukuran'];
-    $warna       = $_POST['warna'];
-    $harga       = $_POST['harga'];
+// SIMPAN DATA
+if(isset($_POST['simpan'])){
+    $nama_pakaian = $_POST['nama_pakaian'];
+    $ukuran = $_POST['ukuran'];
+    $harga = $_POST['harga'];
+    $stok = $_POST['stok'];
 
     $sql = "INSERT INTO pakaian
-            (nama_barang, ukuran, warna, harga)
+            (nama_pakaian, ukuran, harga, stok)
             VALUES
-            ('$nama_barang','$ukuran','$warna','$harga')";
+            ('$nama_pakaian','$ukuran','$harga','$stok')";
 
     $conn->query($sql);
+
+    header("Location: pakaian.php");
+    exit;
 }
 
-/* DELETE */
+// HAPUS DATA
 if(isset($_GET['hapus'])){
-
     $id = $_GET['hapus'];
 
     $conn->query("DELETE FROM pakaian WHERE id='$id'");
+
+    header("Location: pakaian.php");
+    exit;
 }
 
-/* UPDATE */
-if(isset($_POST['update'])){
-
-    $id          = $_POST['id'];
-    $nama_barang = $_POST['nama_barang'];
-    $ukuran      = $_POST['ukuran'];
-    $warna       = $_POST['warna'];
-    $harga       = $_POST['harga'];
-
-    $conn->query("
-        UPDATE pakaian
-        SET
-        nama_barang='$nama_barang',
-        ukuran='$ukuran',
-        warna='$warna',
-        harga='$harga'
-        WHERE id='$id'
-    ");
-}
-
+// AMBIL DATA EDIT
 $edit = null;
 
 if(isset($_GET['edit'])){
-
     $id = $_GET['edit'];
 
     $result = $conn->query(
@@ -73,132 +51,116 @@ if(isset($_GET['edit'])){
     $edit = $result->fetch_assoc();
 }
 
-$data = $conn->query("SELECT * FROM pakaian");
+// UPDATE DATA
+if(isset($_POST['update'])){
+    $id = $_POST['id'];
+    $nama_pakaian = $_POST['nama_pakaian'];
+    $ukuran = $_POST['ukuran'];
+    $harga = $_POST['harga'];
+    $stok = $_POST['stok'];
+
+    $sql = "UPDATE pakaian SET
+            nama_pakaian='$nama_pakaian',
+            ukuran='$ukuran',
+            harga='$harga',
+            stok='$stok'
+            WHERE id='$id'";
+
+    $conn->query($sql);
+
+    header("Location: pakaian.php");
+    exit;
+}
 ?>
 
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Penjualan Pakaian AWS RDS</title>
+    <title>CRUD Penjualan Pakaian</title>
 </head>
 <body>
 
-<h2>CRUD Penjualan Pakaian</h2>
+<h2>Data Penjualan Pakaian</h2>
 
 <form method="POST">
 
-<input type="hidden"
-name="id"
-value="<?= $edit['id'] ?? '' ?>">
+<input type="hidden" name="id"
+value="<?php echo $edit['id'] ?? ''; ?>">
 
-<table>
+<label>Nama Pakaian</label><br>
+<input type="text" name="nama_pakaian"
+value="<?php echo $edit['nama_pakaian'] ?? ''; ?>" required>
+<br><br>
 
-<tr>
-<td>Nama Barang</td>
-<td>
-<input type="text"
-name="nama_barang"
-value="<?= $edit['nama_barang'] ?? '' ?>"
-required>
-</td>
-</tr>
+<label>Ukuran</label><br>
+<select name="ukuran" required>
+    <option value="">Pilih Ukuran</option>
+    <option value="S">S</option>
+    <option value="M">M</option>
+    <option value="L">L</option>
+    <option value="XL">XL</option>
+</select>
+<br><br>
 
-<tr>
-<td>Ukuran</td>
-<td>
-<input type="text"
-name="ukuran"
-value="<?= $edit['ukuran'] ?? '' ?>"
-required>
-</td>
-</tr>
+<label>Harga</label><br>
+<input type="number" name="harga"
+value="<?php echo $edit['harga'] ?? ''; ?>" required>
+<br><br>
 
-<tr>
-<td>Warna</td>
-<td>
-<input type="text"
-name="warna"
-value="<?= $edit['warna'] ?? '' ?>"
-required>
-</td>
-</tr>
-
-<tr>
-<td>Harga</td>
-<td>
-<input type="number"
-name="harga"
-value="<?= $edit['harga'] ?? '' ?>"
-required>
-</td>
-</tr>
-
-<tr>
-<td colspan="2">
+<label>Stok</label><br>
+<input type="number" name="stok"
+value="<?php echo $edit['stok'] ?? ''; ?>" required>
+<br><br>
 
 <?php if($edit){ ?>
-
-<button type="submit" name="update">
-Update
-</button>
-
-<a href="pakaian.php">
-Batal
-</a>
-
+    <button type="submit" name="update">
+        Update Data
+    </button>
 <?php } else { ?>
-
-<button type="submit" name="tambah">
-Simpan
-</button>
-
+    <button type="submit" name="simpan">
+        Simpan Data
+    </button>
 <?php } ?>
-
-</td>
-</tr>
-
-</table>
 
 </form>
 
 <hr>
 
-<table border="1" cellpadding="8">
-
+<table border="1" cellpadding="10">
 <tr>
-<th>ID</th>
-<th>Nama Barang</th>
-<th>Ukuran</th>
-<th>Warna</th>
-<th>Harga</th>
-<th>Aksi</th>
+    <th>ID</th>
+    <th>Nama Pakaian</th>
+    <th>Ukuran</th>
+    <th>Harga</th>
+    <th>Stok</th>
+    <th>Aksi</th>
 </tr>
 
-<?php while($row = $data->fetch_assoc()){ ?>
+<?php
+
+$data = $conn->query(
+    "SELECT * FROM pakaian ORDER BY id DESC"
+);
+
+while($row = $data->fetch_assoc()){
+?>
 
 <tr>
-
-<td><?= $row['id'] ?></td>
-<td><?= $row['nama_barang'] ?></td>
-<td><?= $row['ukuran'] ?></td>
-<td><?= $row['warna'] ?></td>
-<td>Rp <?= number_format($row['harga']) ?></td>
-
-<td>
-
-<a href="?edit=<?= $row['id'] ?>">
-Edit
-</a>
-
-|
-
-<a href="?hapus=<?= $row['id'] ?>"
-onclick="return confirm('Yakin hapus data ini?')">
-Hapus
-</a>
-
-</td>
-
+    <td><?php echo $row['id']; ?></td>
+    <td><?php echo $row['nama_pakaian']; ?></td>
+    <td><?php echo $row['ukuran']; ?></td>
+    <td><?php echo $row['harga']; ?></td>
+    <td><?php echo $row['stok']; ?></td>
+    <td>
+        <a href="?edit=<?php echo $row['id']; ?>">
+            Edit
+        </a>
+        |
+        <a href="?hapus=<?php echo $row['id']; ?>"
+        onclick="return confirm('Yakin hapus data?')">
+            Hapus
+        </a>
+    </td>
 </tr>
 
 <?php } ?>
