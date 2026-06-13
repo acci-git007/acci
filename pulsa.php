@@ -1,228 +1,298 @@
 <?php
-
-$host = "dbpenjuanceo.c83ya4kmsi7u.us-east-1.rds.amazonaws.com";
-$user = "latihan";
-$pass = "latihan2026";
+$host = "endpoint-rds.amazonaws.com";
+$user = "admin";
+$pass = "password";
 $db   = "db_pulsa";
 
-$conn = mysqli_connect($host,$user,$pass,$db);
+$conn = new mysqli($host, $user, $pass, $db);
 
-if(!$conn){
-    die("Koneksi gagal : ".mysqli_connect_error());
+if ($conn->connect_error) {
+    die("Koneksi Gagal : " . $conn->connect_error);
 }
 
-/* TAMBAH DATA */
-if(isset($_POST['simpan'])){
-
+// Tambah Data
+if(isset($_POST['tambah'])){
     $operator = $_POST['operator'];
-    $nomor    = $_POST['nomor'];
     $nominal  = $_POST['nominal'];
+    $harga    = $_POST['harga'];
+    $stok     = $_POST['stok'];
 
-    switch($nominal){
+    $sql = "INSERT INTO pulsa
+            (operator_seluler, nominal, harga, stok)
+            VALUES
+            ('$operator','$nominal','$harga','$stok')";
 
-        case 5000:
-            $harga = 6000;
-            break;
+    $conn->query($sql);
 
-        case 10000:
-            $harga = 11000;
-            break;
-
-        case 25000:
-            $harga = 26000;
-            break;
-
-        case 50000:
-            $harga = 51000;
-            break;
-
-        case 100000:
-            $harga = 101000;
-            break;
-
-        default:
-            $harga = 0;
-    }
-
-    mysqli_query($conn,"
-        INSERT INTO pulsa
-        (operator_seluler,nomor_hp,nominal,harga)
-        VALUES
-        ('$operator','$nomor','$nominal','$harga')
-    ");
+    header("Location: pulsa.php");
+    exit;
 }
 
-/* HAPUS */
+// Hapus Data
 if(isset($_GET['hapus'])){
-
     $id = $_GET['hapus'];
 
-    mysqli_query($conn,"
-        DELETE FROM pulsa
-        WHERE id='$id'
-    ");
+    $conn->query("DELETE FROM pulsa WHERE id='$id'");
+
+    header("Location: pulsa.php");
+    exit;
 }
 
-$data = mysqli_query($conn,"
-SELECT * FROM pulsa
-ORDER BY id DESC
-");
+// Ambil Data Edit
+$edit = false;
+$id = "";
+$operator = "";
+$nominal = "";
+$harga = "";
+$stok = "";
 
+if(isset($_GET['edit'])){
+    $edit = true;
+
+    $id = $_GET['edit'];
+
+    $result = $conn->query(
+        "SELECT * FROM pulsa WHERE id='$id'"
+    );
+
+    $row = $result->fetch_assoc();
+
+    $operator = $row['operator_seluler'];
+    $nominal  = $row['nominal'];
+    $harga    = $row['harga'];
+    $stok     = $row['stok'];
+}
+
+// Update Data
+if(isset($_POST['update'])){
+
+    $id       = $_POST['id'];
+    $operator = $_POST['operator'];
+    $nominal  = $_POST['nominal'];
+    $harga    = $_POST['harga'];
+    $stok     = $_POST['stok'];
+
+    $sql = "UPDATE pulsa SET
+            operator_seluler='$operator',
+            nominal='$nominal',
+            harga='$harga',
+            stok='$stok'
+            WHERE id='$id'";
+
+    $conn->query($sql);
+
+    header("Location: pulsa.php");
+    exit;
+}
 ?>
 
 <!DOCTYPE html>
 <html>
 <head>
-<title>Penjualan Pulsa</title>
+<title>Aplikasi Penjualan Pulsa</title>
+
+<style>
+
+body{
+    font-family:Arial;
+    background:#f4f6f9;
+    margin:0;
+}
+
+.header{
+    background:#0f766e;
+    color:white;
+    text-align:center;
+    padding:20px;
+}
+
+.container{
+    width:90%;
+    margin:auto;
+    margin-top:20px;
+}
+
+.card{
+    background:white;
+    padding:20px;
+    border-radius:10px;
+    box-shadow:0 0 10px rgba(0,0,0,0.1);
+    margin-bottom:20px;
+}
+
+input, select{
+    width:100%;
+    padding:10px;
+    margin-top:5px;
+    margin-bottom:15px;
+    border:1px solid #ccc;
+    border-radius:5px;
+}
+
+button{
+    background:#0f766e;
+    color:white;
+    border:none;
+    padding:10px 20px;
+    border-radius:5px;
+    cursor:pointer;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+}
+
+table th{
+    background:#115e59;
+    color:white;
+    padding:12px;
+}
+
+table td{
+    padding:10px;
+    border:1px solid #ddd;
+}
+
+.edit{
+    background:orange;
+    color:white;
+    text-decoration:none;
+    padding:5px 10px;
+    border-radius:4px;
+}
+
+.hapus{
+    background:red;
+    color:white;
+    text-decoration:none;
+    padding:5px 10px;
+    border-radius:4px;
+}
+
+</style>
+
 </head>
 <body>
 
-<h2>Aplikasi Penjualan Pulsa</h2>
+<div class="header">
+<h1>APLIKASI PENJUALAN PULSA</h1>
+</div>
+
+<div class="container">
+
+<div class="card">
+
+<h2>
+<?php echo $edit ? "Edit Data Pulsa" : "Input Data Pulsa"; ?>
+</h2>
 
 <form method="POST">
+
+<input type="hidden" name="id"
+value="<?php echo $id; ?>">
+
+<label>Operator</label>
+
+<select name="operator" required>
+<option value="Telkomsel" <?php if($operator=="Telkomsel") echo "selected"; ?>>Telkomsel</option>
+<option value="Indosat" <?php if($operator=="Indosat") echo "selected"; ?>>Indosat</option>
+<option value="XL" <?php if($operator=="XL") echo "selected"; ?>>XL</option>
+<option value="Tri" <?php if($operator=="Tri") echo "selected"; ?>>Tri</option>
+<option value="Smartfren" <?php if($operator=="Smartfren") echo "selected"; ?>>Smartfren</option>
+</select>
+
+<label>Nominal</label>
+<input type="number"
+name="nominal"
+value="<?php echo $nominal; ?>"
+required>
+
+<label>Harga</label>
+<input type="number"
+name="harga"
+value="<?php echo $harga; ?>"
+required>
+
+<label>Stok</label>
+<input type="number"
+name="stok"
+value="<?php echo $stok; ?>"
+required>
+
+<?php if($edit){ ?>
+<button type="submit" name="update">
+Update Data
+</button>
+<?php } else { ?>
+<button type="submit" name="tambah">
+Simpan Data
+</button>
+<?php } ?>
+
+</form>
+
+</div>
+
+<div class="card">
+
+<h2>Data Penjualan Pulsa</h2>
 
 <table>
 
 <tr>
-<td>Operator</td>
-<td>
-<select name="operator">
-
-<option value="Telkomsel">
-Telkomsel
-</option>
-
-<option value="Indosat">
-Indosat
-</option>
-
-<option value="XL">
-XL
-</option>
-
-<option value="Tri">
-Tri
-</option>
-
-<option value="Smartfren">
-Smartfren
-</option>
-
-</select>
-</td>
-</tr>
-
-<tr>
-<td>Nomor HP</td>
-<td>
-<input type="text"
-name="nomor"
-placeholder="08xxxxxxxxxx"
-required>
-</td>
-</tr>
-
-<tr>
-<td>Nominal Pulsa</td>
-<td>
-
-<select name="nominal">
-
-<option value="5000">
-5.000
-</option>
-
-<option value="10000">
-10.000
-</option>
-
-<option value="25000">
-25.000
-</option>
-
-<option value="50000">
-50.000
-</option>
-
-<option value="100000">
-100.000
-</option>
-
-</select>
-
-</td>
-</tr>
-
-<tr>
-<td></td>
-<td>
-
-<button type="submit"
-name="simpan">
-Jual Pulsa
-</button>
-
-</td>
-</tr>
-
-</table>
-
-</form>
-
-<hr>
-
-<table border="1" cellpadding="10">
-
-<tr>
 <th>ID</th>
 <th>Operator</th>
-<th>Nomor HP</th>
 <th>Nominal</th>
 <th>Harga</th>
-<th>Tanggal</th>
+<th>Stok</th>
 <th>Aksi</th>
 </tr>
 
 <?php
-while($row=mysqli_fetch_assoc($data)){
-?>
 
-<tr>
+$data = $conn->query(
+"SELECT * FROM pulsa ORDER BY id DESC"
+);
 
-<td><?= $row['id']; ?></td>
+while($row = $data->fetch_assoc()){
 
-<td><?= $row['operator_seluler']; ?></td>
+echo "<tr>
 
-<td><?= $row['nomor_hp']; ?></td>
+<td>".$row['id']."</td>
 
-<td>
-Rp <?= number_format($row['nominal']); ?>
-</td>
+<td>".$row['operator_seluler']."</td>
 
-<td>
-Rp <?= number_format($row['harga']); ?>
-</td>
+<td>".$row['nominal']." K</td>
 
-<td>
-<?= $row['tanggal']; ?>
-</td>
+<td>Rp ".number_format($row['harga'],0,',','.')."</td>
+
+<td>".$row['stok']."</td>
 
 <td>
 
-<a href="?hapus=<?= $row['id']; ?>"
-onclick="return confirm('Hapus data?')">
+<a class='edit'
+href='?edit=".$row['id']."'>
+Edit
+</a>
+
+<a class='hapus'
+href='?hapus=".$row['id']."'
+onclick=\"return confirm('Yakin hapus data?')\">
 Hapus
 </a>
 
 </td>
 
-</tr>
-
-<?php
+</tr>";
 }
 ?>
 
 </table>
+
+</div>
+
+</div>
 
 </body>
 </html>
