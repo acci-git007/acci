@@ -4,10 +4,6 @@ require 'vendor/autoload.php';
 
 use Aws\S3\S3Client;
 
-/* =====================
-   KONEKSI RDS
-===================== */
-
 $host = "dbsiswa.c83ya4kmsi7u.us-east-1.rds.amazonaws.com";
 $user = "admin";
 $pass = "admin2026";
@@ -16,21 +12,13 @@ $db   = "dbsiswa";
 $conn = mysqli_connect($host,$user,$pass,$db);
 
 if(!$conn){
-    die("Koneksi gagal : ".mysqli_connect_error());
+    die("Koneksi Database Gagal");
 }
-
-/* =====================
-   KONEKSI S3
-===================== */
 
 $s3 = new S3Client([
     'version' => 'latest',
     'region'  => 'us-east-1'
 ]);
-
-/* =====================
-   SIMPAN DATA
-===================== */
 
 if(isset($_POST['simpan']))
 {
@@ -41,126 +29,110 @@ if(isset($_POST['simpan']))
 
     $urlFoto = '';
 
-    if(!empty($_FILES['foto']['name']))
+    if($_FILES['foto']['name'] != '')
     {
-        $namaFile = time().'_'.basename($_FILES['foto']['name']);
+        $namaFile = time().'_'.$_FILES['foto']['name'];
 
-        try{
+        $result = $s3->putObject([
+            'Bucket'     => 'foto-siswa-bucket',
+            'Key'        => 'siswa/'.$namaFile,
+            'SourceFile' => $_FILES['foto']['tmp_name']
+        ]);
 
-            $result = $s3->putObject([
-                'Bucket'     => 'foto-siswa-bucket',
-                'Key'        => 'siswa/'.$namaFile,
-                'SourceFile' => $_FILES['foto']['tmp_name']
-            ]);
-
-            $urlFoto = $result['ObjectURL'];
-
-        }catch(Exception $e){
-
-            die("Upload S3 gagal : ".$e->getMessage());
-        }
+        $urlFoto = $result['ObjectURL'];
     }
 
     mysqli_query($conn,"
-        INSERT INTO siswa
-        (nis,nama,kelas,alamat,foto)
-        VALUES
-        (
-            '$nis',
-            '$nama',
-            '$kelas',
-            '$alamat',
-            '$urlFoto'
-        )
+    INSERT INTO siswa(nis,nama,kelas,alamat,foto)
+    VALUES('$nis','$nama','$kelas','$alamat','$urlFoto')
     ");
 
     header("Location:index.php");
-    exit;
 }
 ?>
 
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Aplikasi Data Siswa</title>
+<title>Aplikasi Data Siswa AWS</title>
 
-    <style>
-        body{
-            font-family:Arial;
-            margin:30px;
-        }
-
-        table{
-            border-collapse:collapse;
-            width:100%;
-        }
-
-        table,th,td{
-            border:1px solid #ccc;
-        }
-
-        th,td{
-            padding:10px;
-            text-align:left;
-        }
-
-        input,textarea{
-            width:100%;
-            padding:8px;
-        }
-
-        button{
-            padding:10px 20px;
-        }
-    </style>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 
 </head>
-<body>
+<body class="bg-light">
 
-<h2>Aplikasi Data Siswa</h2>
+<div class="container mt-5">
+
+<div class="card shadow">
+<div class="card-header bg-primary text-white">
+<h3>Aplikasi Data Siswa</h3>
+<p class="mb-0">RDS MySQL + S3 Storage</p>
+</div>
+
+<div class="card-body">
 
 <form method="POST" enctype="multipart/form-data">
 
-    <label>NIS</label><br>
-    <input type="text" name="nis" required>
-    <br><br>
+<div class="row">
 
-    <label>Nama</label><br>
-    <input type="text" name="nama" required>
-    <br><br>
+<div class="col-md-6 mb-3">
+<label>NIS</label>
+<input type="text" name="nis" class="form-control" required>
+</div>
 
-    <label>Kelas</label><br>
-    <input type="text" name="kelas" required>
-    <br><br>
+<div class="col-md-6 mb-3">
+<label>Nama</label>
+<input type="text" name="nama" class="form-control" required>
+</div>
 
-    <label>Alamat</label><br>
-    <textarea name="alamat"></textarea>
-    <br><br>
+<div class="col-md-6 mb-3">
+<label>Kelas</label>
+<input type="text" name="kelas" class="form-control" required>
+</div>
 
-    <label>Foto</label><br>
-    <input type="file" name="foto" required>
-    <br><br>
+<div class="col-md-6 mb-3">
+<label>Foto</label>
+<input type="file" name="foto" class="form-control" required>
+</div>
 
-    <button type="submit" name="simpan">
-        Simpan Data
-    </button>
+<div class="col-md-12 mb-3">
+<label>Alamat</label>
+<textarea name="alamat" class="form-control"></textarea>
+</div>
+
+</div>
+
+<button type="submit" name="simpan" class="btn btn-success">
+Simpan Data
+</button>
 
 </form>
 
-<hr>
+</div>
+</div>
 
-<h3>Data Siswa</h3>
+<div class="card shadow mt-4">
 
-<table>
+<div class="card-header">
+<h4>Data Siswa</h4>
+</div>
 
+<div class="card-body">
+
+<table class="table table-bordered table-striped">
+
+<thead class="table-dark">
 <tr>
-    <th>ID</th>
-    <th>NIS</th>
-    <th>Nama</th>
-    <th>Kelas</th>
-    <th>Alamat</th>
-    <th>Foto</th>
+<th>ID</th>
+<th>Foto</th>
+<th>NIS</th>
+<th>Nama</th>
+<th>Kelas</th>
+<th>Alamat</th>
 </tr>
+</thead>
+
+<tbody>
 
 <?php
 
@@ -173,22 +145,33 @@ while($d = mysqli_fetch_assoc($data))
 <tr>
 
 <td><?= $d['id']; ?></td>
+
+<td>
+<?php if($d['foto']) { ?>
+<img src="<?= $d['foto']; ?>"
+width="80"
+height="80"
+style="object-fit:cover;border-radius:10px;">
+<?php } ?>
+</td>
+
 <td><?= $d['nis']; ?></td>
 <td><?= $d['nama']; ?></td>
 <td><?= $d['kelas']; ?></td>
 <td><?= $d['alamat']; ?></td>
 
-<td>
-<?php if($d['foto']) { ?>
-<img src="<?= $d['foto']; ?>" width="100">
-<?php } ?>
-</td>
-
 </tr>
 
 <?php } ?>
 
+</tbody>
+
 </table>
+
+</div>
+</div>
+
+</div>
 
 </body>
 </html>
